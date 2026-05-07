@@ -31,8 +31,6 @@
 
 program wav2lip;
 
-{$mode objfpc}{$H+}
-
 uses
   SysUtils, Classes, uLipGenerator, uWavReader;
 
@@ -241,8 +239,10 @@ end;
 var
   Generator: TLipGenerator;
   Options: TCommandLineOptions;
-  Result: TLipGenResult;
+  GenOptions: TLipGenOptions;
+  GenResult: TLipGenResult;
   WavReader: TWavReader;
+  ExportList: TStringList;
   I: Integer;
 begin
   // Parse command line
@@ -261,14 +261,19 @@ begin
   
   // Create generator
   Generator := TLipGenerator.Create;
+  GenResult.Warnings := nil;
+  WavReader := nil;
+  ExportList := nil;
   try
     // Configure generator
-    Generator.Options.FPS := Options.FPS;
-    Generator.Options.Threshold := Options.Threshold;
-    Generator.Options.Normalize := Options.Normalize;
-    Generator.Options.IncludeExtendedData := Options.ExtendedData;
-    Generator.Options.DebugMode := Options.DebugMode;
-    Generator.OnProgress := ProgressCallback;
+    GenOptions := Generator.Options;
+    GenOptions.FPS := Options.FPS;
+    GenOptions.Threshold := Options.Threshold;
+    GenOptions.Normalize := Options.Normalize;
+    GenOptions.IncludeExtendedData := Options.ExtendedData;
+    GenOptions.DebugMode := Options.DebugMode;
+    Generator.Options := GenOptions;
+    Generator.OnProgressProc := ProgressCallback;
     
     // Handle compare mode
     if Options.CompareFile <> '' then
@@ -309,6 +314,7 @@ begin
     if LowerCase(ExtractFileExt(Options.InputFile)) = '.wav' then
     begin
       try
+        WavReader := nil;
         WavReader := TWavReader.Create(Options.InputFile);
         try
           WriteLn('Audio Information:');
@@ -327,32 +333,30 @@ begin
     
     // Generate LIP file
     WriteLn('Generating...');
-    Result := Generator.GenerateFromFile(Options.InputFile, Options.OutputFile);
+    GenResult := Generator.GenerateFromFile(Options.InputFile, Options.OutputFile);
     
     WriteLn('');
     
-    if Result.Success then
+    if GenResult.Success then
     begin
       WriteLn('Success!');
-      WriteLn(Format('Output file: %s', [Result.OutputFile]));
-      WriteLn(Format('Duration: %.3f seconds', [Result.Duration]));
-      WriteLn(Format('Frames generated: %d', [Result.FrameCount]));
-      WriteLn(Format('Processing time: %.3f seconds', [Result.ProcessingTime]));
+      WriteLn(Format('Output file: %s', [GenResult.OutputFile]));
+      WriteLn(Format('Duration: %.3f seconds', [GenResult.Duration]));
+      WriteLn(Format('Frames generated: %d', [GenResult.FrameCount]));
+      WriteLn(Format('Processing time: %.3f seconds', [GenResult.ProcessingTime]));
       
-      // Export debug info if requested
+      // Export JSON debug info if requested
       if Options.ExportJSON <> '' then
       begin
         WriteLn('');
-        WriteLn(Format('Exporting debug info to: %s', [Options.ExportJSON]));
-        if Generator.ExportToJSON(Options.OutputFile) <> '' then
-        begin
-          with TStringList.Create do
-          try
-            Text := Generator.ExportToJSON(Options.OutputFile);
-            SaveToFile(Options.ExportJSON);
-          finally
-            Free;
-          end;
+        WriteLn(Format('Exporting JSON to: %s', [Options.ExportJSON]));
+        ExportList := TStringList.Create;
+        try
+          ExportList.Text := Generator.ExportToJSON(Options.OutputFile);
+          ExportList.SaveToFile(Options.ExportJSON);
+        finally
+          ExportList.Free;
+          ExportList := nil;
         end;
       end;
       
@@ -360,12 +364,13 @@ begin
       begin
         WriteLn('');
         WriteLn(Format('Exporting debug info to: %s', [Options.ExportDebug]));
-        with TStringList.Create do
+        ExportList := TStringList.Create;
         try
-          Text := Generator.ExportDebugInfo(Options.OutputFile);
-          SaveToFile(Options.ExportDebug);
+          ExportList.Text := Generator.ExportDebugInfo(Options.OutputFile);
+          ExportList.SaveToFile(Options.ExportDebug);
         finally
-          Free;
+          ExportList.Free;
+          ExportList := nil;
         end;
       end;
       
@@ -381,12 +386,12 @@ begin
       end;
       
       // Show warnings
-      if Result.Warnings.Count > 0 then
+      if Assigned(GenResult.Warnings) and (GenResult.Warnings.Count > 0) then
       begin
         WriteLn('');
         WriteLn('Warnings:');
-        for I := 0 to Result.Warnings.Count - 1 do
-          WriteLn(Format('  - %s', [Result.Warnings[I]]));
+        for I := 0 to GenResult.Warnings.Count - 1 do
+          WriteLn(Format('  - %s', [GenResult.Warnings[I]]));
       end;
       
       // Show debug log if enabled
@@ -400,12 +405,14 @@ begin
     end
     else
     begin
-      WriteLn('Error: ' + Result.ErrorMessage);
+      WriteLn('Error: ' + GenResult.ErrorMessage);
       ExitCode := 1;
     end;
     
   finally
+    ExportList.Free;
     Generator.Free;
-    Result.Warnings.Free;
+    if Assigned(GenResult.Warnings) then
+      GenResult.Warnings.Free;
   end;
 end.

@@ -13,16 +13,15 @@
 
 unit uLipGenerator;
 
-{$mode objfpc}{$H+}
-
 interface
 
 uses
-  Classes, SysUtils, uWavReader, uAudioBuffer, uSignalAnalysis, uFalloutLipFormat;
+  Classes, SysUtils, Math, StrUtils, uWavReader, uAudioBuffer, uSignalAnalysis, uFalloutLipFormat;
 
 type
-  { Progress callback type }
+  { Progress callback types }
   TProgressCallback = procedure(Progress: Integer; const Status: string) of object;
+  TProgressProc     = procedure(Progress: Integer; const Status: string);
 
   { Lip generation options }
   TLipGenOptions = record
@@ -38,6 +37,7 @@ type
   { Default lip generation options }
   function DefaultLipGenOptions: TLipGenOptions;
 
+type
   { Lip generation result }
   TLipGenResult = record
     Success: Boolean;                // Generation succeeded
@@ -50,11 +50,14 @@ type
     Warnings: TStringList;           // Any warnings during processing
   end;
 
+  TLipGenResultArray = array of TLipGenResult;
+
   { Main lip generator class }
   TLipGenerator = class
   private
     FOptions: TLipGenOptions;
     FOnProgress: TProgressCallback;
+    FOnProgressProc: TProgressProc;
     FDebugLog: TStringList;
     
     procedure DoProgress(Progress: Integer; const Status: string);
@@ -74,7 +77,7 @@ type
     function GenerateLipFrames(Buffer: TAudioBuffer): TLipFrameArray;
     
     { Batch process multiple files }
-    function BatchProcess(const InputList, OutputList: TStringList): TArray<TLipGenResult>;
+    function BatchProcess(const InputList, OutputList: TStringList): TLipGenResultArray;
     
     { Export debug information }
     function ExportDebugInfo(const LipFile: string): string;
@@ -94,6 +97,7 @@ type
     { Properties }
     property Options: TLipGenOptions read FOptions write FOptions;
     property OnProgress: TProgressCallback read FOnProgress write FOnProgress;
+    property OnProgressProc: TProgressProc read FOnProgressProc write FOnProgressProc;
     property DebugLog: TStringList read FDebugLog;
   end;
 
@@ -131,6 +135,8 @@ procedure TLipGenerator.DoProgress(Progress: Integer; const Status: string);
 begin
   if Assigned(FOnProgress) then
     FOnProgress(Progress, Status);
+  if Assigned(FOnProgressProc) then
+    FOnProgressProc(Progress, Status);
 end;
 
 procedure TLipGenerator.LogDebug(const Msg: string);
@@ -180,6 +186,7 @@ var
   WavReader: TWavReader;
   AudioBuffer: TAudioBuffer;
   StartTime: TDateTime;
+  BufResult: TLipGenResult;
 begin
   // Initialize result
   FillChar(Result, SizeOf(Result), 0);
@@ -236,11 +243,14 @@ begin
           end;
           
           DoProgress(50, 'Generating lip frames...');
-          
-          // Generate lip frames
-          Result.Success := GenerateFromBuffer(AudioBuffer, OutputLip).Success;
-          Result.ErrorMessage := GenerateFromBuffer(AudioBuffer, OutputLip).ErrorMessage;
-          Result.FrameCount := GenerateFromBuffer(AudioBuffer, OutputLip).FrameCount;
+
+          // Generate lip frames - call GenerateFromBuffer once and store result
+          BufResult := GenerateFromBuffer(AudioBuffer, OutputLip);
+          Result.Success := BufResult.Success;
+          Result.ErrorMessage := BufResult.ErrorMessage;
+          Result.FrameCount := BufResult.FrameCount;
+          if Assigned(BufResult.Warnings) then
+            BufResult.Warnings.Free;
           
         finally
           AudioBuffer.Free;
@@ -384,7 +394,7 @@ begin
   end;
 end;
 
-function TLipGenerator.BatchProcess(const InputList, OutputList: TStringList): TArray<TLipGenResult>;
+function TLipGenerator.BatchProcess(const InputList, OutputList: TStringList): TLipGenResultArray;
 var
   I, Count: Integer;
 begin

@@ -10,12 +10,11 @@
 
 unit uMainForm;
 
-{$mode objfpc}{$H+}
 
 interface
 
 uses
-  Classes, SysUtils, Forms, Controls, Graphics, Dialogs, StdCtrls,
+  Classes, SysUtils, Math, System.UITypes, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, ComCtrls, Menus, ActnList, Buttons, Grids, uLipGenerator,
   uWavReader, uAudioBuffer, uFalloutLipFormat;
 
@@ -249,7 +248,6 @@ type
     procedure LoadLipFile(const FileName: string);
     procedure GenerateLipFile;
     procedure AddToBatch(const InputFile, OutputFile: string);
-    procedure ProcessBatch;
     procedure ClearBatch;
     procedure ShowErrorMessage(const Msg: string);
     procedure ShowInfoMessage(const Msg: string);
@@ -264,7 +262,7 @@ var
 
 implementation
 
-{$R *.lfm}
+{$R *.dfm}
 
 { TfrmMain }
 
@@ -380,60 +378,62 @@ begin
 end;
 
 procedure TfrmMain.LoadWavFile(const FileName: string);
+var
+  Step, I: Integer;
 begin
   try
     // Free existing resources
     if Assigned(FAudioBuffer) then
       FreeAndNil(FAudioBuffer);
-    
+
     if Assigned(FWavReader) then
       FreeAndNil(FWavReader);
-    
+
     // Load WAV file
     FWavReader := TWavReader.Create(FileName);
-    
+
     if not FWavReader.IsFormatSupported then
     begin
       ShowErrorMessage('Unsupported WAV format. Please use uncompressed PCM WAV files (8-bit or 16-bit, mono).');
       FreeAndNil(FWavReader);
       Exit;
     end;
-    
+
     // Load to buffer
     FAudioBuffer := FWavReader.LoadToBuffer;
-    
+
     // Normalize if checked
     if chkNormalize.Checked and Assigned(FAudioBuffer) then
       FAudioBuffer.Normalize;
-    
+
     // Update display
     edtInputFile.Text := FileName;
     UpdateAudioInfo;
-    
+
     // Generate waveform data
     if Assigned(FAudioBuffer) then
     begin
       SetLength(FWaveformData, Min(FAudioBuffer.SampleCount, 10000));
-      
+
       // Downsample for display
       if FAudioBuffer.SampleCount > 10000 then
       begin
-        var Step := FAudioBuffer.SampleCount div 10000;
-        for var I := 0 to 9999 do
+        Step := FAudioBuffer.SampleCount div 10000;
+        for I := 0 to 9999 do
           FWaveformData[I] := FAudioBuffer[I * Step];
       end
       else
       begin
-        for var I := 0 to FAudioBuffer.SampleCount - 1 do
+        for I := 0 to FAudioBuffer.SampleCount - 1 do
           FWaveformData[I] := FAudioBuffer[I];
       end;
     end;
-    
+
     UpdateWaveform;
     UpdateControls;
-    
+
     ShowInfoMessage(Format('Loaded WAV file: %s (%.3f seconds)', [FileName, FWavReader.Duration]));
-    
+
   except
     on E: Exception do
     begin
@@ -486,41 +486,45 @@ end;
 
 procedure TfrmMain.GenerateLipFile;
 var
-  Result: TLipGenResult;
+  GenResult: TLipGenResult;
+  DebugFile: string;
+  Options: TLipGenOptions;
 begin
   if FProcessing then
     Exit;
-  
+
   FProcessing := True;
   FCurrentProgress := 0;
-  
+
   try
     // Configure generator
-    FGenerator.Options.FPS := StrToIntDef(cmbFPS.Text[1], 12);
-    FGenerator.Options.Threshold := StrToFloatDef(edtThreshold.Text, 0.08);
-    FGenerator.Options.Normalize := chkNormalize.Checked;
-    FGenerator.Options.IncludeExtendedData := chkExtendedData.Checked;
-    FGenerator.Options.DebugMode := chkDebug.Checked;
+    Options := FGenerator.Options;
+    Options.FPS := StrToIntDef(Trim(Copy(cmbFPS.Text, 1, Pos(' ', cmbFPS.Text + ' ') - 1)), 12);
+    Options.Threshold := StrToFloatDef(edtThreshold.Text, 0.08);
+    Options.Normalize := chkNormalize.Checked;
+    Options.IncludeExtendedData := chkExtendedData.Checked;
+    Options.DebugMode := chkDebug.Checked;
+    FGenerator.Options := Options;
     FGenerator.OnProgress := UpdateProgress;
-    
+
     // Generate
-    Result := FGenerator.GenerateFromFile(edtInputFile.Text, edtOutputFile.Text);
-    
-    if Result.Success then
+    GenResult := FGenerator.GenerateFromFile(edtInputFile.Text, edtOutputFile.Text);
+
+    if GenResult.Success then
     begin
       ShowInfoMessage(Format('LIP file generated successfully!'#13#10 +
         'Frames: %d'#13#10 +
         'Duration: %.3f seconds'#13#10 +
         'Processing time: %.3f seconds',
-        [Result.FrameCount, Result.Duration, Result.ProcessingTime]));
-      
+        [GenResult.FrameCount, GenResult.Duration, GenResult.ProcessingTime]));
+
       // Load generated file
       LoadLipFile(edtOutputFile.Text);
-      
+
       // Export debug info if requested
       if chkDebug.Checked then
       begin
-        var DebugFile := ChangeFileExt(edtOutputFile.Text, '.debug.txt');
+        DebugFile := ChangeFileExt(edtOutputFile.Text, '.debug.txt');
         with TStringList.Create do
         try
           Text := FGenerator.ExportDebugInfo(edtOutputFile.Text);
@@ -533,12 +537,13 @@ begin
     end
     else
     begin
-      ShowErrorMessage(Format('Generation failed: %s', [Result.ErrorMessage]));
+      ShowErrorMessage(Format('Generation failed: %s', [GenResult.ErrorMessage]));
     end;
-    
+
     // Free warnings
-    Result.Warnings.Free;
-    
+    if Assigned(GenResult.Warnings) then
+      GenResult.Warnings.Free;
+
   finally
     FProcessing := False;
     FCurrentProgress := 0;
@@ -556,12 +561,6 @@ begin
   UpdateControls;
 end;
 
-procedure TfrmMain.ProcessBatch;
-begin
-  // Batch processing implementation
-  ShowInfoMessage('Batch processing not fully implemented in this version.');
-end;
-
 procedure TfrmMain.ClearBatch;
 begin
   lbBatchList.Clear;
@@ -570,7 +569,7 @@ end;
 
 procedure TfrmMain.ShowErrorMessage(const Msg: string);
 begin
-  MessageDlg('Error', Msg, mtError, [mbOK], 0);
+  MessageDlg(Msg, mtError, [mbOK], 0);
   sbMain.SimpleText := Format('Error: %s', [Msg]);
 end;
 

@@ -15,12 +15,10 @@
 
 unit uFalloutLipFormat;
 
-{$mode objfpc}{$H+}
-
 interface
 
 uses
-  Classes, SysUtils, Math, uSignalAnalysis;
+  Classes, SysUtils, Math, StrUtils, uSignalAnalysis;
 
 const
   // Fallout LIP file signature
@@ -196,7 +194,7 @@ begin
   
   // Initialize header
   FillChar(FHeader, SizeOf(FHeader), 0);
-  FHeader.Signature := LIP_SIGNATURE;
+  Move(LIP_SIGNATURE, FHeader.Signature, SizeOf(FHeader.Signature));
   FHeader.Version := 1;
   FHeader.FPS := LIP_FPS_12;
   FHeader.Duration := 0;
@@ -389,7 +387,7 @@ begin
   FHasExtendedData := False;
   
   FillChar(FHeader, SizeOf(FHeader), 0);
-  FHeader.Signature := LIP_SIGNATURE;
+  Move(LIP_SIGNATURE, FHeader.Signature, SizeOf(FHeader.Signature));
   FHeader.Version := 1;
   FHeader.FPS := LIP_FPS_12;
 end;
@@ -410,7 +408,7 @@ begin
     Exit;
   
   // Check frame count
-  if (FHeader.FrameCount > MAX_LIP_FRAMES) or (FHeader.FrameCount < 0) then
+  if FHeader.FrameCount > MAX_LIP_FRAMES then
     Exit;
   
   // Check FPS
@@ -836,6 +834,7 @@ var
   SL: TStringList;
   TotalDuration: Double;
   Scale: Double;
+  FrameDuration: Double;
   Bar: string;
 begin
   SL := TStringList.Create;
@@ -855,7 +854,14 @@ begin
     
     for I := 0 to FLipFile.FrameCount - 1 do
     begin
-      BarWidth := Round(FLipFile[I].Duration * Scale);
+      if I < FLipFile.FrameCount - 1 then
+        FrameDuration := (FLipFile[I + 1].TimeOffset - FLipFile[I].TimeOffset) / 1000.0
+      else if FLipFile.Header.FPS > 0 then
+        FrameDuration := 1.0 / FLipFile.Header.FPS
+      else
+        FrameDuration := TotalDuration / Max(FLipFile.FrameCount, 1);
+
+      BarWidth := Round(FrameDuration * Scale);
       if BarWidth < 1 then BarWidth := 1;
       
       case FLipFile[I].MouthState of

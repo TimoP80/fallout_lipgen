@@ -11,12 +11,10 @@
 
 unit uSignalAnalysis;
 
-{$mode objfpc}{$H+}
-
 interface
 
 uses
-  Classes, SysUtils, Math, uAudioBuffer;
+  Classes, SysUtils, Math, Types, uAudioBuffer;
 
 type
   { Mouth states (visemes) }
@@ -37,6 +35,10 @@ type
 
   { Array of lip frames }
   TLipFrameArray = array of TLipFrame;
+  TDoubleArray = array of Double;
+  TBooleanArray = array of Boolean;
+  TPointFArray = array of TPointF;
+  TMouthStateArray = array of TMouthState;
 
   { Envelope detector for amplitude tracking }
   TEnvelopeDetector = class
@@ -55,7 +57,7 @@ type
     function ProcessSample(sample: Double): Double;
     
     { Process entire buffer, return envelope array }
-    function ProcessBuffer(buffer: TAudioBuffer): array of Double;
+    function ProcessBuffer(buffer: TAudioBuffer): TDoubleArray;
     
     { Reset envelope state }
     procedure Reset;
@@ -80,8 +82,8 @@ type
     function EstimateSpectralCentroid(const samples: array of Double; startIdx, endIdx: Integer): Double;
     function MapEnergyToMouthState(energy: Double): TMouthState;
     function MapEnergyToIntensity(energy: Double): Double;
-    function DetectSilenceRegions(const envelope: array of Double): array of Boolean;
-    procedure SmoothMouthStates(var states: array of TMouthState);
+    function DetectSilenceRegions(const envelope: array of Double): TBooleanArray;
+    procedure SmoothMouthStates(var states: TLipFrameArray);
   public
     constructor Create(sampleRate: Integer);
     
@@ -89,16 +91,16 @@ type
     function GenerateLipFrames(buffer: TAudioBuffer; fps: Integer): TLipFrameArray;
     
     { Detect phoneme-like segments }
-    function DetectPhonemeSegments(buffer: TAudioBuffer): array of TPointF;
+    function DetectPhonemeSegments(buffer: TAudioBuffer): TPointFArray;
     
     { Calculate energy envelope }
-    function CalculateEnergyEnvelope(buffer: TAudioBuffer): array of Double;
+    function CalculateEnergyEnvelope(buffer: TAudioBuffer): TDoubleArray;
     
     { Detect silence regions }
-    function DetectSilence(buffer: TAudioBuffer; threshold: Double): array of TPointF;
+    function DetectSilence(buffer: TAudioBuffer; threshold: Double): TPointFArray;
     
     { Get amplitude envelope }
-    function GetAmplitudeEnvelope(buffer: TAudioBuffer; windowSize: Integer): array of Double;
+    function GetAmplitudeEnvelope(buffer: TAudioBuffer; windowSize: Integer): TDoubleArray;
     
     { Properties }
     property Threshold: Double read FThreshold write FThreshold;
@@ -144,13 +146,13 @@ begin
   
   if absSample > FCurrentEnvelope then
   begin
-    // Attack phase
+    { Attack phase }
     alpha := CalculateAlpha(FAttackTime);
     FCurrentEnvelope := alpha * FCurrentEnvelope + (1.0 - alpha) * absSample;
   end
   else
   begin
-    // Release phase
+    { Release phase }
     alpha := CalculateAlpha(FReleaseTime);
     FCurrentEnvelope := alpha * FCurrentEnvelope;
   end;
@@ -158,7 +160,7 @@ begin
   Result := FCurrentEnvelope;
 end;
 
-function TEnvelopeDetector.ProcessBuffer(buffer: TAudioBuffer): array of Double;
+function TEnvelopeDetector.ProcessBuffer(buffer: TAudioBuffer): TDoubleArray;
 var
   I, sampleCount: Integer;
 begin
@@ -237,8 +239,8 @@ var
   sumMagnitude, sumWeighted: Double;
   magnitude: Double;
 begin
-  // Simplified spectral centroid estimation using zero-crossing rate as proxy
-  // In a full implementation, this would use FFT
+  { Simplified spectral centroid estimation using zero-crossing rate as proxy }
+  { In a full implementation, this would use FFT }
   
   if startIdx < 0 then startIdx := 0;
   if endIdx >= Length(samples) then endIdx := Length(samples) - 1;
@@ -285,7 +287,7 @@ begin
   Result := EnsureRange(Result, 0.0, 1.0);
 end;
 
-function TAudioAnalyzer.DetectSilenceRegions(const envelope: array of Double): array of Boolean;
+function TAudioAnalyzer.DetectSilenceRegions(const envelope: array of Double): TBooleanArray;
 var
   I, silenceStart, silenceLength: Integer;
   inSilence: Boolean;
@@ -313,10 +315,10 @@ begin
     begin
       if inSilence then
       begin
-        // Check if silence was long enough
+        { Check if silence was long enough }
         if silenceLength < Round(FMinSilenceDuration * FSampleRate) then
         begin
-          // Not long enough, mark as non-silence
+          { Not long enough, mark as non-silence }
           while silenceStart < I do
           begin
             Result[silenceStart] := False;
@@ -331,59 +333,67 @@ begin
   end;
 end;
 
-procedure TAudioAnalyzer.SmoothMouthStates(var states: array of TMouthState);
+procedure TAudioAnalyzer.SmoothMouthStates(var states: TLipFrameArray);
 var
-  I, J, window, count: Integer;
+  I, J, window: Integer;
+  state: TMouthState;
   stateCounts: array[TMouthState] of Integer;
   maxState: TMouthState;
   maxCount: Integer;
+  smoothed: TMouthStateArray;
 begin
+  if Length(states) = 0 then Exit;
+
   window := Round(FMinPhonemeDuration * FSampleRate / (FHopSize * 2));
   if window < 1 then window := 1;
-  
+
+  SetLength(smoothed, Length(states));
+
   for I := 0 to Length(states) - 1 do
   begin
-    // Count states in window
-    for J := Low(TMouthState) to High(TMouthState) do
-      stateCounts[J] := 0;
-    
+    { Count states in window }
+    for state := Low(TMouthState) to High(TMouthState) do
+      stateCounts[state] := 0;
+
     for J := Max(0, I - window) to Min(Length(states) - 1, I + window) do
-      Inc(stateCounts[states[J]]);
-    
-    // Find most common state
+      Inc(stateCounts[states[J].MouthState]);
+
+    { Find most common state }
     maxCount := 0;
     maxState := msClosed;
-    for J := Low(TMouthState) to High(TMouthState) do
-    begin
-      if stateCounts[J] > maxCount then
+    for state := Low(TMouthState) to High(TMouthState) do
+      if stateCounts[state] > maxCount then
       begin
-        maxCount := stateCounts[J];
-        maxState := TMouthState(J);
+        maxCount := stateCounts[state];
+        maxState := state;
       end;
-    end;
-    
-    states[I] := maxState;
+
+    smoothed[I] := maxState;
   end;
+
+  { Apply smoothed states back }
+  for I := 0 to Length(states) - 1 do
+    states[I].MouthState := smoothed[I];
 end;
 
 function TAudioAnalyzer.GenerateLipFrames(buffer: TAudioBuffer; fps: Integer): TLipFrameArray;
 var
-  envelope: array of Double;
-  silenceRegions: array of Boolean;
+  envelope: TDoubleArray;
+  silenceRegions: TBooleanArray;
   frameDuration, currentTime: Double;
-  frameIndex, sampleIndex, frameCount: Integer;
+  sampleIndex, frameCount: Integer;
   frameEnergy: Double;
   currentState, prevState: TMouthState;
   stateStartFrame: Integer;
   I: Integer;
 begin
-  // Calculate envelope
+  { Calculate envelope }
   envelope := CalculateEnergyEnvelope(buffer);
   
-  // Detect silence regions
+  { Detect silence regions }
   silenceRegions := DetectSilenceRegions(envelope);
   
-  // Calculate frame parameters
+  { Calculate frame parameters }
   frameDuration := 1.0 / fps;
   frameCount := Round(buffer.Duration * fps);
   if frameCount < 1 then frameCount := 1;
@@ -396,7 +406,7 @@ begin
   
   for I := 0 to frameCount - 1 do
   begin
-    // Calculate average energy for this frame
+    { Calculate average energy for this frame }
     sampleIndex := Round(I * buffer.SampleRate / fps);
     frameEnergy := 0.0;
     
@@ -404,7 +414,7 @@ begin
     begin
       frameEnergy := envelope[sampleIndex];
       
-      // Check if in silence region
+      { Check if in silence region }
       if silenceRegions[sampleIndex] then
         currentState := msClosed
       else
@@ -416,11 +426,11 @@ begin
       frameEnergy := 0.0;
     end;
     
-    // Apply temporal smoothing
+    { Apply temporal smoothing }
     if (currentState <> prevState) and (I - stateStartFrame < Round(FMinPhonemeDuration * fps)) then
       currentState := prevState;
     
-    // Fill frame
+    { Fill frame }
     Result[I].Time := currentTime;
     Result[I].MouthState := currentState;
     Result[I].Intensity := MapEnergyToIntensity(frameEnergy);
@@ -435,14 +445,14 @@ begin
     end;
   end;
   
-  // Apply final smoothing
+  { Apply final smoothing }
   SmoothMouthStates(Result);
 end;
 
-function TAudioAnalyzer.DetectPhonemeSegments(buffer: TAudioBuffer): array of TPointF;
+function TAudioAnalyzer.DetectPhonemeSegments(buffer: TAudioBuffer): TPointFArray;
 var
-  envelope: array of Double;
-  silenceRegions: array of Boolean;
+  envelope: TDoubleArray;
+  silenceRegions: TBooleanArray;
   I, segmentStart: Integer;
   inSegment: Boolean;
   segmentCount: Integer;
@@ -450,8 +460,9 @@ var
 begin
   envelope := CalculateEnergyEnvelope(buffer);
   silenceRegions := DetectSilenceRegions(envelope);
+  segmentStart := 0;
   
-  // Count segments
+  { Count segments }
   segmentCount := 0;
   inSegment := False;
   
@@ -473,13 +484,12 @@ begin
     end;
   end;
   
-  // Allocate result array
-  SetLength(Result, segmentCount * 2); // Start and end points
+  { Allocate result array }
+  SetLength(Result, segmentCount * 2); { Start and end points }
   
-  // Fill segments
+  { Fill segments }
   segmentCount := 0;
   inSegment := False;
-  segmentStart := 0;
   
   for I := 0 to Length(envelope) - 1 do
   begin
@@ -505,7 +515,7 @@ begin
     end;
   end;
   
-  // Handle last segment
+  { Handle last segment }
   if inSegment then
   begin
     Result[segmentCount].X := segmentStart / FSampleRate;
@@ -513,7 +523,7 @@ begin
   end;
 end;
 
-function TAudioAnalyzer.CalculateEnergyEnvelope(buffer: TAudioBuffer): array of Double;
+function TAudioAnalyzer.CalculateEnergyEnvelope(buffer: TAudioBuffer): TDoubleArray;
 var
   detector: TEnvelopeDetector;
 begin
@@ -528,9 +538,9 @@ begin
   end;
 end;
 
-function TAudioAnalyzer.DetectSilence(buffer: TAudioBuffer; threshold: Double): array of TPointF;
+function TAudioAnalyzer.DetectSilence(buffer: TAudioBuffer; threshold: Double): TPointFArray;
 var
-  envelope: array of Double;
+  envelope: TDoubleArray;
   I, silenceStart: Integer;
   inSilence: Boolean;
   silenceCount: Integer;
@@ -538,11 +548,12 @@ var
 begin
   oldThreshold := FThreshold;
   FThreshold := threshold;
+  silenceStart := 0;
   
   try
     envelope := CalculateEnergyEnvelope(buffer);
     
-    // Count silence segments
+    { Count silence segments }
     silenceCount := 0;
     inSilence := False;
     
@@ -562,10 +573,10 @@ begin
       end;
     end;
     
-    // Allocate result
+    { Allocate result }
     SetLength(Result, silenceCount * 2);
     
-    // Fill silence segments
+    { Fill silence segments }
     silenceCount := 0;
     inSilence := False;
     
@@ -591,7 +602,7 @@ begin
       end;
     end;
     
-    // Handle last silence
+    { Handle last silence }
     if inSilence then
     begin
       Result[silenceCount].X := silenceStart / FSampleRate;
@@ -602,23 +613,23 @@ begin
   end;
 end;
 
-function TAudioAnalyzer.GetAmplitudeEnvelope(buffer: TAudioBuffer; windowSize: Integer): array of Double;
+function TAudioAnalyzer.GetAmplitudeEnvelope(buffer: TAudioBuffer; windowSize: Integer): TDoubleArray;
 var
   I, windowCount, startIdx, endIdx: Integer;
 begin
   if windowSize < 1 then windowSize := FWindowSize;
-  
+
   windowCount := buffer.SampleCount div windowSize;
   if buffer.SampleCount mod windowSize > 0 then
     Inc(windowCount);
-  
+
   SetLength(Result, windowCount);
-  
+
   for I := 0 to windowCount - 1 do
   begin
     startIdx := I * windowSize;
     endIdx := Min((I + 1) * windowSize - 1, buffer.SampleCount - 1);
-    Result[I] := CalculateRMS(@buffer.Data[0], startIdx, endIdx);
+    Result[I] := buffer.GetRMS(startIdx, endIdx);
   end;
 end;
 
