@@ -1,0 +1,68 @@
+{
+  "name": "FalloutLipGenerator",
+  "version": "1.0.0",
+  "description": "Fallout 1/2 compatible .LIP file generator from WAV audio",
+  "language": "Object Pascal / Delphi",
+  "compiler": {
+    "delphi": "11+",
+    "freepascal": "3.2+"
+  },
+  "targets": [
+    "Windows",
+    "Linux (via FPC)",
+    "macOS (via FPC)"
+  ],
+  "output": {
+    "cli": "bin/cli/wav2lip.exe",
+    "gui": "bin/gui/LipGeneratorGUI.exe"
+  },
+  "units": [
+    "src/audio/uAudioBuffer.pas",
+    "src/audio/uWavReader.pas",
+    "src/lip/uSignalAnalysis.pas",
+    "src/format/uFalloutLipFormat.pas",
+    "src/core/uLipGenerator.pas",
+    "src/uFalloutLipGenerator.pas",
+    "src/cli/wav2lip.dpr",
+    "src/gui/LipGeneratorGUI.dpr",
+    "src/gui/uMainForm.pas"
+  ],
+  "tests": [
+    "tests/uLipGeneratorTests.pas"
+  ],
+  "features": {
+    "wav_processing": {
+      "formats": ["8-bit PCM", "16-bit PCM"],
+      "channels": ["mono"],
+      "sample_rates": "any (22050 Hz recommended)"
+    },
+    "lip_generation": {
+      "fps": [10, 12, 15],
+      "mouth_states": 4,
+      "threshold_range": "0.0 - 1.0"
+    },
+    "analysis": {
+      "envelope_detection": true,
+      "silence_detection": true,
+      "phoneme_approximation": true,
+      "rms_calculation": true
+    },
+    "export": {
+      "json": true,
+      "debug_text": true,
+      "hex_dump": true,
+      "timing_visualization": true
+    },
+    "batch_processing": true,
+    "gui": true,
+    "cli": true
+  },
+  "compatibility": {
+    "fallout_2_ce": true,
+    "sfall": true,
+    "classic_fallout": true,
+    "talking_head_mods": true
+  },
+  "license": "MIT",
+  "copyright": "2026"
+}

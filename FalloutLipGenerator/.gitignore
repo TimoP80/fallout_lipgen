@@ -1,0 +1,42 @@
+# Build outputs
+*.exe
+*.dll
+*.so
+*.dylib
+*.o
+*.ppu
+*.dcu
+
+# IDE files
+*.dsk
+*.local
+*.identcache
+*.tvsconfig
+
+# User files
+*.lip
+*.wav
+
+# Logs
+*.log
+build.log
+
+# Backup files
+*.bak
+*~
+
+# Temporary files
+*.tmp
+*.temp
+
+# Test outputs
+testrunner
+*.xml
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Compiled build script
+build
+build.exe
