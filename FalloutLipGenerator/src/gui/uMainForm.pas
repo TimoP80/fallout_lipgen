@@ -16,7 +16,7 @@ interface
 uses
   Classes, SysUtils, Math, System.UITypes, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, ComCtrls, Menus, ActnList, Buttons, Grids, uLipGenerator,
-  uWavReader, uAudioBuffer, uFalloutLipFormat;
+  uWavReader, uAudioBuffer, uFalloutLipFormat, uFalloutLipFormatV2;
 
 type
 
@@ -235,6 +235,7 @@ type
     FWavReader: TWavReader;
     FAudioBuffer: TAudioBuffer;
     FLipFile: TFalloutLipFile;
+    FLipFileV2: TFalloutLipFileV2;
     FWaveformData: array of Double;
     FProcessing: Boolean;
     FCurrentProgress: Integer;
@@ -274,6 +275,7 @@ begin
   FWavReader := nil;
   FAudioBuffer := nil;
   FLipFile := nil;
+  FLipFileV2 := nil;
   FProcessing := False;
   FCurrentProgress := 0;
   
@@ -303,6 +305,9 @@ begin
   
   if Assigned(FLipFile) then
     FLipFile.Free;
+
+  if Assigned(FLipFileV2) then
+    FLipFileV2.Free;
   
   FGenerator.Free;
   
@@ -351,7 +356,14 @@ end;
 
 procedure TfrmMain.UpdateLipInfo;
 begin
-  if Assigned(FLipFile) and FLipFile.IsValid then
+  if Assigned(FLipFileV2) and FLipFileV2.IsValid then
+  begin
+    lblLipFile.Caption := ExtractFileName(edtOutputFile.Text);
+    lblLipDurationVal.Caption := Format('%.3f seconds', [FLipFileV2.GetDuration]);
+    lblLipFrameCountVal.Caption := Format('%d phonemes', [FLipFileV2.PhonemeCount]);
+    lblLipFPSVal.Caption := 'V2';
+  end
+  else if Assigned(FLipFile) and FLipFile.IsValid then
   begin
     lblLipFile.Caption := ExtractFileName(edtOutputFile.Text);
     lblLipDurationVal.Caption := Format('%.3f seconds', [FLipFile.Duration]);
@@ -408,6 +420,7 @@ begin
 
     // Update display
     edtInputFile.Text := FileName;
+    edtOutputFile.Text := ChangeFileExt(FileName, '.lip');
     UpdateAudioInfo;
 
     // Generate waveform data
@@ -450,22 +463,35 @@ begin
     // Free existing lip file
     if Assigned(FLipFile) then
       FreeAndNil(FLipFile);
+    if Assigned(FLipFileV2) then
+      FreeAndNil(FLipFileV2);
     
-    // Load LIP file
-    FLipFile := TFalloutLipFile.Create;
-    
-    if not FLipFile.LoadFromFile(FileName) then
-    begin
-      ShowErrorMessage('Failed to load LIP file');
-      FreeAndNil(FLipFile);
-      Exit;
+    FLipFileV2 := TFalloutLipFileV2.Create;
+    try
+      if not (FLipFileV2.LoadFromFile(FileName) and FLipFileV2.IsValid) then
+        FreeAndNil(FLipFileV2);
+    except
+      FreeAndNil(FLipFileV2);
     end;
-    
-    if not FLipFile.IsValid then
+
+    if not Assigned(FLipFileV2) then
     begin
-      ShowErrorMessage('Invalid LIP file format');
-      FreeAndNil(FLipFile);
-      Exit;
+      // Load legacy LIP file
+      FLipFile := TFalloutLipFile.Create;
+      
+      if not FLipFile.LoadFromFile(FileName) then
+      begin
+        ShowErrorMessage('Failed to load LIP file');
+        FreeAndNil(FLipFile);
+        Exit;
+      end;
+      
+      if not FLipFile.IsValid then
+      begin
+        ShowErrorMessage('Invalid LIP file format');
+        FreeAndNil(FLipFile);
+        Exit;
+      end;
     end;
     
     // Update display
@@ -473,7 +499,10 @@ begin
     UpdateLipInfo;
     UpdateControls;
     
-    ShowInfoMessage(Format('Loaded LIP file: %s (%d frames)', [FileName, FLipFile.FrameCount]));
+    if Assigned(FLipFileV2) then
+      ShowInfoMessage(Format('Loaded LIP file: %s (%d phonemes)', [FileName, FLipFileV2.PhonemeCount]))
+    else
+      ShowInfoMessage(Format('Loaded LIP file: %s (%d frames)', [FileName, FLipFile.FrameCount]));
     
   except
     on E: Exception do
@@ -711,6 +740,9 @@ begin
   
   if Assigned(FLipFile) then
     FreeAndNil(FLipFile);
+  
+  if Assigned(FLipFileV2) then
+    FreeAndNil(FLipFileV2);
   
   SetLength(FWaveformData, 0);
   

@@ -10,8 +10,6 @@
 
 unit uWavReader;
 
-{$mode objfpc}{$H+}
-
 interface
 
 uses
@@ -86,13 +84,16 @@ var
 begin
   FFileName := AFileName;
   FIsValid := False;
-  
+
   if not FileExists(AFileName) then
     raise EWavReadError.CreateFmt('File not found: %s', [AFileName]);
-  
+
+  { Read just the header to validate the file; PCM data is read on demand by LoadToBuffer }
   Stream := TFileStream.Create(AFileName, fmOpenRead or fmShareDenyWrite);
   try
-    LoadFromStream(Stream);
+    if Stream.Read(FHeader, SizeOf(TWavHeader)) <> SizeOf(TWavHeader) then
+      raise EWavReadError.Create('Invalid WAV file: cannot read header');
+    FIsValid := ValidateHeader;
   finally
     Stream.Free;
   end;
@@ -102,26 +103,26 @@ function TWavReader.ValidateHeader: Boolean;
 begin
   Result := False;
   
-  // Check RIFF header
+  { Check RIFF header }
   if (FHeader.RiffId[0] <> 'R') or (FHeader.RiffId[1] <> 'I') or
      (FHeader.RiffId[2] <> 'F') or (FHeader.RiffId[3] <> 'F') then
     Exit;
   
-  // Check WAVE identifier
+  { Check WAVE identifier }
   if (FHeader.WaveId[0] <> 'W') or (FHeader.WaveId[1] <> 'A') or
      (FHeader.WaveId[2] <> 'V') or (FHeader.WaveId[3] <> 'E') then
     Exit;
   
-  // Check fmt chunk
+  { Check fmt chunk }
   if (FHeader.FmtId[0] <> 'f') or (FHeader.FmtId[1] <> 'm') or
      (FHeader.FmtId[2] <> 't') or (FHeader.FmtId[3] <> ' ') then
     Exit;
   
-  // Check audio format (1 = PCM)
+  { Check audio format (1 = PCM) }
   if FHeader.AudioFormat <> 1 then
     Exit;
   
-  // Check data chunk identifier
+  { Check data chunk identifier }
   if (FHeader.DataId[0] <> 'd') or (FHeader.DataId[1] <> 'a') or
      (FHeader.DataId[2] <> 't') or (FHeader.DataId[3] <> 'a') then
     Exit;
@@ -131,76 +132,33 @@ end;
 
 function TWavReader.LoadFromStream(Stream: TStream): TAudioBuffer;
 var
-  DataStart: Int64;
+  TempBytes: array of Byte;
 begin
   Result := nil;
-  
-  // Read header
+
+  { Read header }
   if Stream.Read(FHeader, SizeOf(TWavHeader)) <> SizeOf(TWavHeader) then
     raise EWavReadError.Create('Invalid WAV file: cannot read header');
-  
+
   FIsValid := ValidateHeader;
   if not FIsValid then
     raise EWavReadError.Create('Invalid or unsupported WAV format');
-  
-  // Check if format is supported
+
+  { Check if format is supported }
   if not IsFormatSupported then
     raise EWavReadError.CreateFmt('Unsupported WAV format: %d channels, %d bits/sample',
       [FHeader.NumChannels, FHeader.BitsPerSample]);
-  
-  // Store data start position
-  DataStart := Stream.Position;
-  
-  // Create audio buffer
+
+  { Read raw PCM data }
+  SetLength(TempBytes, FHeader.DataSize);
+  if Stream.Read(TempBytes[0], FHeader.DataSize) <> LongInt(FHeader.DataSize) then
+    raise EWavReadError.Create('Failed to read WAV data');
+
+  { Create and populate audio buffer via public API }
   Result := TAudioBuffer.Create;
   try
-    // Read PCM data
-    Stream.Position := DataStart;
-    
-    case FHeader.BitsPerSample of
-      8:
-        begin
-          SetLength(Result.FData, FHeader.DataSize);
-          if Stream.Read(Result.FData[0], FHeader.DataSize) <> FHeader.DataSize then
-            raise EWavReadError.Create('Failed to read WAV data');
-          
-          // Convert 8-bit unsigned to float
-          // This is done in LoadFrom8BitPCM, but we need to convert here
-          // Actually, let's use the buffer's method
-        end;
-      16:
-        begin
-          SetLength(Result.FData, FHeader.DataSize div 2);
-          if Stream.Read(Result.FData[0], FHeader.DataSize) <> FHeader.DataSize then
-            raise EWavReadError.Create('Failed to read WAV data');
-          
-          // Convert 16-bit to float
-          // We'll do the conversion manually here
-        end;
-    end;
-    
-    // Set properties
-    Result.FSampleRate := FHeader.SampleRate;
-    Result.FBitsPerSample := FHeader.BitsPerSample;
-    Result.FChannels := FHeader.NumChannels;
-    Result.FDuration := GetDuration;
-    
-    // Convert based on format
-    if FHeader.BitsPerSample = 8 then
-    begin
-      // Convert 8-bit unsigned bytes to float
-      // Data is already in Result.FData as bytes, need to convert
-      // Actually, we read bytes into float array, need proper conversion
-      // Let's re-read properly
-      Stream.Position := DataStart;
-      SetLength(Result.FData, FHeader.DataSize);
-      if Stream.Read(Result.FData[0], FHeader.DataSize) <> FHeader.DataSize then
-        raise EWavReadError.Create('Failed to read WAV data');
-      
-      // Now convert - but FData is Double array, we read bytes into it
-      // This won't work. Let's use a different approach.
-    end;
-    
+    Result.LoadFromPCM(TempBytes[0], LongInt(FHeader.DataSize),
+      FHeader.SampleRate, FHeader.BitsPerSample, FHeader.NumChannels);
   except
     Result.Free;
     raise;
@@ -210,73 +168,32 @@ end;
 function TWavReader.LoadToBuffer: TAudioBuffer;
 var
   Stream: TStream;
-  DataStart: Int64;
-  I: Integer;
-  Sample16: SmallInt;
-  Sample8: Byte;
   TempBytes: array of Byte;
 begin
   Stream := TFileStream.Create(FFileName, fmOpenRead or fmShareDenyWrite);
   try
-    // Read header
+    { Read header }
     if Stream.Read(FHeader, SizeOf(TWavHeader)) <> SizeOf(TWavHeader) then
       raise EWavReadError.Create('Invalid WAV file: cannot read header');
-    
+
     FIsValid := ValidateHeader;
     if not FIsValid then
       raise EWavReadError.Create('Invalid or unsupported WAV format');
-    
-    // Check if format is supported
+
     if not IsFormatSupported then
       raise EWavReadError.CreateFmt('Unsupported WAV format: %d channels, %d bits/sample',
         [FHeader.NumChannels, FHeader.BitsPerSample]);
-    
-    // Data start position
-    DataStart := Stream.Position;
-    
-    // Create result buffer
+
+    { Read raw PCM bytes }
+    SetLength(TempBytes, FHeader.DataSize);
+    if Stream.Read(TempBytes[0], FHeader.DataSize) <> LongInt(FHeader.DataSize) then
+      raise EWavReadError.Create('Failed to read WAV data');
+
+    { Create buffer via public API }
     Result := TAudioBuffer.Create;
     try
-      Result.FSampleRate := FHeader.SampleRate;
-      Result.FBitsPerSample := FHeader.BitsPerSample;
-      Result.FChannels := FHeader.NumChannels;
-      Result.FDuration := GetDuration;
-      
-      case FHeader.BitsPerSample of
-        8:
-          begin
-            Result.FFormat := pf8BitMono;
-            SetLength(Result.FData, FHeader.DataSize);
-            SetLength(TempBytes, FHeader.DataSize);
-            
-            if Stream.Read(TempBytes[0], FHeader.DataSize) <> FHeader.DataSize then
-              raise EWavReadError.Create('Failed to read WAV data');
-            
-            // Convert 8-bit unsigned to float (-1.0 to 1.0)
-            for I := 0 to FHeader.DataSize - 1 do
-              Result.FData[I] := (TempBytes[I] - 128) / 128.0;
-          end;
-        16:
-          begin
-            Result.FFormat := pf16BitMono;
-            SetLength(Result.FData, FHeader.DataSize div 2);
-            SetLength(TempBytes, FHeader.DataSize);
-            
-            if Stream.Read(TempBytes[0], FHeader.DataSize) <> FHeader.DataSize then
-              raise EWavReadError.Create('Failed to read WAV data');
-            
-            // Convert 16-bit signed to float (-1.0 to 1.0)
-            for I := 0 to (FHeader.DataSize div 2) - 1 do
-            begin
-              Move(TempBytes[I * 2], Sample16, 2);
-              Result.FData[I] := Sample16 / 32768.0;
-            end;
-          end;
-      else
-        raise EWavReadError.CreateFmt('Unsupported bits per sample: %d', [FHeader.BitsPerSample]);
-      end;
-      
-      Result.FDuration := GetDuration;
+      Result.LoadFromPCM(TempBytes[0], LongInt(FHeader.DataSize),
+        FHeader.SampleRate, FHeader.BitsPerSample, FHeader.NumChannels);
     except
       Result.Free;
       raise;
@@ -293,10 +210,10 @@ end;
 
 function TWavReader.IsFormatSupported: Boolean;
 begin
-  // Support mono, 8-bit or 16-bit PCM
+  { Support mono, 8-bit or 16-bit PCM }
   Result := (FHeader.NumChannels = 1) and
             ((FHeader.BitsPerSample = 8) or (FHeader.BitsPerSample = 16)) and
-            (FHeader.AudioFormat = 1); // PCM
+            (FHeader.AudioFormat = 1); { PCM }
 end;
 
 function TWavReader.GetDuration: Double;

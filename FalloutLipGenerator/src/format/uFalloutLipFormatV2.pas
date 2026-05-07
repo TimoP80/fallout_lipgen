@@ -15,12 +15,10 @@
 
 unit uFalloutLipFormatV2;
 
-{$mode objfpc}{$H+}
-
 interface
 
 uses
-  Classes, SysUtils, Math, uSignalAnalysis;
+  Classes, SysUtils, Math, uSignalAnalysis, uFalloutLipFormat;
 
 const
   // LIP file version (Fallout 2 uses version 2)
@@ -30,7 +28,7 @@ const
   LIP_MAGIC = $00005800;
   
   // Maximum phonemes
-  MAX_PHONEMES = 100;
+  MAX_PHONEMES = 10000;
   
   // ACM filename length
   ACM_NAME_LENGTH = 8;
@@ -197,12 +195,19 @@ type
     property DebugMode: Boolean read FDebugMode write FDebugMode;
   end;
 
-  { Exceptions }
-  ELipFormatError = class(Exception);
-  ELipReadError = class(Exception);
-  ELipWriteError = class(Exception);
-
 implementation
+
+function ACMFileNameToString(const Value: array of AnsiChar): string;
+var
+  Len: Integer;
+begin
+  Len := 0;
+  while (Len < Length(Value)) and (Value[Len] <> #0) do
+    Inc(Len);
+
+  SetString(Result, PAnsiChar(@Value[0]), Len);
+  Result := TrimRight(Result);
+end;
 
 { TFalloutLipFileV2 }
 
@@ -267,9 +272,9 @@ end;
 function TFalloutLipFileV2.GetDuration: Double;
 begin
   // Duration is based on last marker's sample offset
-  // Assuming 22050 Hz sample rate for ACM
+  // Marker offsets are stored as sampleRate * 4 byte positions.
   if (Length(FMarkers) > 0) and (FMarkers[High(FMarkers)].SampleOffset > 0) then
-    Result := FMarkers[High(FMarkers)].SampleOffset / 22050.0
+    Result := FMarkers[High(FMarkers)].SampleOffset / (22050.0 * 4.0)
   else
     Result := 0.0;
 end;
@@ -398,9 +403,30 @@ begin
   // Clear existing data
   SetLength(FPhonemes, 0);
   SetLength(FMarkers, 0);
+
+  FillChar(FHeader.ACMFileName, ACM_NAME_LENGTH, 0);
+  if ACMFileName <> '' then
+  begin
+    for I := 0 to Min(Length(ACMFileName) - 1, ACM_NAME_LENGTH - 1) do
+      FHeader.ACMFileName[I] := AnsiChar(ACMFileName[I + 1]);
+  end;
   
   if Length(LipFrames) = 0 then
+  begin
+    FHeader.Version := LIP_VERSION_2;
+    FHeader.Magic := LIP_MAGIC;
+    FHeader.Unknown1 := 0;
+    FHeader.Unknown2 := 0;
+    FHeader.ACMFileLength := 0;
+    FHeader.NumPhonemes := 0;
+    FHeader.Unknown3 := 0;
+    FHeader.NumMarkers := 1;
+
+    SetLength(FMarkers, 1);
+    FMarkers[0].MarkerType := 1;
+    FMarkers[0].SampleOffset := 0;
     Exit;
+  end;
   
   // Estimate sample rate (22050 Hz for ACM)
   SampleRate := 22050;
@@ -424,14 +450,6 @@ begin
   FHeader.Unknown2 := 0;
   FHeader.NumPhonemes := J;
   FHeader.NumMarkers := J + 1;
-  
-  // Set ACM filename
-  if ACMFileName <> '' then
-  begin
-    FillChar(FHeader.ACMFileName, ACM_NAME_LENGTH, 0);
-    for I := 0 to Min(Length(ACMFileName) - 1, ACM_NAME_LENGTH - 1) do
-      FHeader.ACMFileName[I] := AnsiChar(ACMFileName[I + 1]);
-  end;
   
   // First marker is always silence at time 0
   FMarkers[0].MarkerType := 1;
@@ -499,6 +517,14 @@ begin
   begin
     // Calculate time for this phoneme
     CurrentTime := FMarkers[I].SampleOffset / (SampleRate * 4);
+    if I < High(FMarkers) then
+      NextTime := FMarkers[I + 1].SampleOffset / (SampleRate * 4)
+    else
+      NextTime := GetDuration;
+
+    FrameDuration := Max(0.0, NextTime - CurrentTime);
+    if FrameDuration = 0.0 then
+      FrameDuration := 1.0 / 12.0;
     
     // Determine mouth state from phoneme code
     if FPhonemes[I - 1].Code <= High(PHONEME_TO_FRAME) then
@@ -590,7 +616,7 @@ begin
     SL.Add(Format('Phoneme Count: %d', [FHeader.NumPhonemes]));
     SL.Add(Format('Marker Count: %d', [FHeader.NumMarkers]));
     SL.Add(Format('ACM File Length: %d bytes', [FHeader.ACMFileLength]));
-    SL.Add(Format('ACM File Name: %s', [FHeader.ACMFileName]));
+    SL.Add(Format('ACM File Name: %s', [ACMFileNameToString(FHeader.ACMFileName)]));
     SL.Add('');
     
     if Length(FPhonemes) > 0 then
@@ -638,7 +664,7 @@ begin
     SL.Add(Format('  "phonemeCount": %d,', [FHeader.NumPhonemes]));
     SL.Add(Format('  "markerCount": %d,', [FHeader.NumMarkers]));
     SL.Add(Format('  "acmFileLength": %d,', [FHeader.ACMFileLength]));
-    SL.Add(Format('  "acmFileName": "%s",', [FHeader.ACMFileName]));
+    SL.Add(Format('  "acmFileName": "%s",', [ACMFileNameToString(FHeader.ACMFileName)]));
     SL.Add('  "phonemes": [');
     
     for I := 0 to High(FPhonemes) do

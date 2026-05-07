@@ -16,7 +16,7 @@ unit uLipGenerator;
 interface
 
 uses
-  Classes, SysUtils, Math, StrUtils, uWavReader, uAudioBuffer, uSignalAnalysis, uFalloutLipFormat;
+  Classes, SysUtils, Math, StrUtils, uWavReader, uAudioBuffer, uSignalAnalysis, uFalloutLipFormat, uFalloutLipFormatV2;
 
 type
   { Progress callback types }
@@ -103,7 +103,44 @@ type
 
 implementation
 
+type
+  TLipFormatKind = (lfUnknown, lfLegacy, lfV2);
+
 { Helper functions }
+
+function MakeACMFileName(const LipFileName: string): string;
+begin
+  Result := UpperCase(ChangeFileExt(ExtractFileName(LipFileName), ''));
+  if Length(Result) > 8 then
+    SetLength(Result, 8);
+end;
+
+function DetectLipFormat(const LipFile: string): TLipFormatKind;
+var
+  Stream: TFileStream;
+  Header: array[0..3] of Byte;
+  Version: LongWord;
+begin
+  Result := lfUnknown;
+  if not FileExists(LipFile) then
+    Exit;
+
+  Stream := TFileStream.Create(LipFile, fmOpenRead or fmShareDenyWrite);
+  try
+    if Stream.Read(Header, SizeOf(Header)) <> SizeOf(Header) then
+      Exit;
+
+    if (Header[0] = Ord('L')) and (Header[1] = Ord('I')) and
+       (Header[2] = Ord('P')) and (Header[3] = 0) then
+      Exit(lfLegacy);
+
+    Move(Header, Version, SizeOf(Version));
+    if Version = LIP_VERSION_2 then
+      Result := lfV2;
+  finally
+    Stream.Free;
+  end;
+end;
 
 function DefaultLipGenOptions: TLipGenOptions;
 begin
@@ -281,8 +318,8 @@ end;
 function TLipGenerator.GenerateFromBuffer(Buffer: TAudioBuffer; const OutputLip: string): TLipGenResult;
 var
   LipFrames: TLipFrameArray;
-  LipFile: TFalloutLipFile;
-  Serializer: TFalloutLipSerializer;
+  LipFile: TFalloutLipFileV2;
+  Serializer: TFalloutLipSerializerV2;
   StartTime: TDateTime;
   I: Integer;
 begin
@@ -314,13 +351,12 @@ begin
     DoProgress(80, 'Serializing to LIP format...');
     
     // Create serializer
-    Serializer := TFalloutLipSerializer.Create;
+    Serializer := TFalloutLipSerializerV2.Create;
     try
-      Serializer.IncludeExtendedData := FOptions.IncludeExtendedData;
       Serializer.DebugMode := FOptions.DebugMode;
       
       // Serialize to LIP file
-      LipFile := Serializer.Serialize(LipFrames, FOptions.FPS);
+      LipFile := Serializer.Serialize(LipFrames, MakeACMFileName(OutputLip));
       try
         LipFile.FileName := OutputLip;
         
@@ -420,54 +456,138 @@ end;
 function TLipGenerator.ExportDebugInfo(const LipFile: string): string;
 var
   Lip: TFalloutLipFile;
+  LipV2: TFalloutLipFileV2;
 begin
-  Lip := TFalloutLipFile.Create;
-  try
-    if Lip.LoadFromFile(LipFile) then
-      Result := Lip.ExportDebugInfo
-    else
-      Result := Format('Failed to load LIP file: %s', [LipFile]);
-  finally
-    Lip.Free;
+  case DetectLipFormat(LipFile) of
+    lfLegacy:
+      begin
+        Lip := TFalloutLipFile.Create;
+        try
+          if Lip.LoadFromFile(LipFile) then
+            Result := Lip.ExportDebugInfo
+          else
+            Result := Format('Failed to load LIP file: %s', [LipFile]);
+        finally
+          Lip.Free;
+        end;
+      end;
+    lfV2:
+      begin
+        LipV2 := TFalloutLipFileV2.Create;
+        try
+          if LipV2.LoadFromFile(LipFile) then
+            Result := LipV2.ExportDebugInfo
+          else
+            Result := Format('Failed to load LIP file: %s', [LipFile]);
+        finally
+          LipV2.Free;
+        end;
+      end;
+  else
+    Result := Format('Unknown or unsupported LIP format: %s', [LipFile]);
   end;
 end;
 
 function TLipGenerator.ExportToJSON(const LipFile: string): string;
 var
   Lip: TFalloutLipFile;
+  LipV2: TFalloutLipFileV2;
 begin
-  Lip := TFalloutLipFile.Create;
-  try
-    if Lip.LoadFromFile(LipFile) then
-      Result := Lip.ExportToJSON
-    else
-      Result := Format('{"error": "Failed to load LIP file: %s"}', [LipFile]);
-  finally
-    Lip.Free;
+  case DetectLipFormat(LipFile) of
+    lfLegacy:
+      begin
+        Lip := TFalloutLipFile.Create;
+        try
+          if Lip.LoadFromFile(LipFile) then
+            Result := Lip.ExportToJSON
+          else
+            Result := Format('{"error": "Failed to load LIP file: %s"}', [LipFile]);
+        finally
+          Lip.Free;
+        end;
+      end;
+    lfV2:
+      begin
+        LipV2 := TFalloutLipFileV2.Create;
+        try
+          if LipV2.LoadFromFile(LipFile) then
+            Result := LipV2.ExportToJSON
+          else
+            Result := Format('{"error": "Failed to load LIP file: %s"}', [LipFile]);
+        finally
+          LipV2.Free;
+        end;
+      end;
+  else
+    Result := Format('{"error": "Unknown or unsupported LIP format: %s"}', [LipFile]);
   end;
 end;
 
 function TLipGenerator.CompareFiles(const LipFile1, LipFile2: string): string;
 var
   Serializer: TFalloutLipSerializer;
+  SerializerV2: TFalloutLipSerializerV2;
+  Format1, Format2: TLipFormatKind;
 begin
-  Serializer := TFalloutLipSerializer.Create;
-  try
-    Result := Serializer.CompareLipFiles(LipFile1, LipFile2);
-  finally
-    Serializer.Free;
+  Format1 := DetectLipFormat(LipFile1);
+  Format2 := DetectLipFormat(LipFile2);
+
+  if Format1 <> Format2 then
+  begin
+    Result := 'Cannot compare LIP files with different internal formats.';
+    Exit;
+  end;
+
+  case Format1 of
+    lfLegacy:
+      begin
+        Serializer := TFalloutLipSerializer.Create;
+        try
+          Result := Serializer.CompareLipFiles(LipFile1, LipFile2);
+        finally
+          Serializer.Free;
+        end;
+      end;
+    lfV2:
+      begin
+        SerializerV2 := TFalloutLipSerializerV2.Create;
+        try
+          Result := SerializerV2.CompareLipFiles(LipFile1, LipFile2);
+        finally
+          SerializerV2.Free;
+        end;
+      end;
+  else
+    Result := 'Unknown or unsupported LIP format.';
   end;
 end;
 
 function TLipGenerator.ValidateLipFile(const LipFile: string): Boolean;
 var
   Lip: TFalloutLipFile;
+  LipV2: TFalloutLipFileV2;
 begin
-  Lip := TFalloutLipFile.Create;
-  try
-    Result := Lip.LoadFromFile(LipFile) and Lip.IsValid;
-  finally
-    Lip.Free;
+  case DetectLipFormat(LipFile) of
+    lfLegacy:
+      begin
+        Lip := TFalloutLipFile.Create;
+        try
+          Result := Lip.LoadFromFile(LipFile) and Lip.IsValid;
+        finally
+          Lip.Free;
+        end;
+      end;
+    lfV2:
+      begin
+        LipV2 := TFalloutLipFileV2.Create;
+        try
+          Result := LipV2.LoadFromFile(LipFile) and LipV2.IsValid;
+        finally
+          LipV2.Free;
+        end;
+      end;
+  else
+    Result := False;
   end;
 end;
 

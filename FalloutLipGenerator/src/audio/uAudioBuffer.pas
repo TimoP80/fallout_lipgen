@@ -10,8 +10,6 @@
 
 unit uAudioBuffer;
 
-{$mode objfpc}{$H+}
-
 interface
 
 uses
@@ -65,6 +63,9 @@ type
     function ExtractSegment(StartSample, EndSample: Integer): TAudioBuffer;
     
     { Properties }
+    { Direct access to underlying sample data for signal processing }
+    function GetDataPointer: PDouble;
+
     property Samples[Index: Integer]: Double read GetSample write SetSample; default;
     property SampleCount: Integer read GetSampleCount;
     property SampleRate: Integer read FSampleRate write FSampleRate;
@@ -72,7 +73,6 @@ type
     property Format: TPCMFormat read FFormat;
     property BitsPerSample: Integer read FBitsPerSample;
     property Channels: Integer read FChannels;
-    property Data: array of Double read FData;
   end;
 
 implementation
@@ -115,7 +115,7 @@ begin
     FData[Index] := EnsureRange(Value, -1.0, 1.0);
 end;
 
-procedure TAudioBuffer.LoadFromPCM(const Buffer; BufferSize: Integer;
+procedure TAudioBuffer.LoadFromPCM(const Buffer; BufferSize: Integer; 
   SampleRate, BitsPerSample, Channels: Integer);
 begin
   FSampleRate := SampleRate;
@@ -144,8 +144,7 @@ begin
     FDuration := 0;
 end;
 
-procedure TAudioBuffer.LoadFrom8BitPCM(const Buffer; BufferSize: Integer;
-  SampleRate: Integer);
+procedure TAudioBuffer.LoadFrom8BitPCM(const Buffer; BufferSize: Integer; SampleRate: Integer);
 var
   P: PByte;
   I: Integer;
@@ -162,7 +161,7 @@ begin
   for I := 0 to BufferSize - 1 do
   begin
     Sample8 := P^;
-    // Convert 8-bit unsigned (0-255) to float (-1.0 to 1.0)
+    { Convert 8-bit unsigned (0-255) to float (-1.0 to 1.0) }
     FData[I] := (Sample8 - 128) / 128.0;
     Inc(P);
   end;
@@ -170,8 +169,7 @@ begin
   FDuration := BufferSize / SampleRate;
 end;
 
-procedure TAudioBuffer.LoadFrom16BitPCM(const Buffer; BufferSize: Integer;
-  SampleRate: Integer);
+procedure TAudioBuffer.LoadFrom16BitPCM(const Buffer; BufferSize: Integer; SampleRate: Integer);
 var
   P: PSmallInt;
   I, SampleCount: Integer;
@@ -189,7 +187,7 @@ begin
   for I := 0 to SampleCount - 1 do
   begin
     Sample16 := P^;
-    // Convert 16-bit signed to float (-1.0 to 1.0)
+    { Convert 16-bit signed to float (-1.0 to 1.0) }
     FData[I] := Sample16 / 32768.0;
     Inc(P);
   end;
@@ -199,7 +197,8 @@ end;
 
 procedure TAudioBuffer.Normalize;
 var
-  Peak, I: Integer;
+  I: Integer;
+  Peak: Double;
   Scale: Double;
 begin
   Peak := GetPeakAmplitude;
@@ -241,6 +240,14 @@ begin
     SumSquares := SumSquares + Sqr(FData[I]);
   
   Result := Sqrt(SumSquares / Count);
+end;
+
+function TAudioBuffer.GetDataPointer: PDouble;
+begin
+  if Length(FData) > 0 then
+    Result := @FData[0]
+  else
+    Result := nil;
 end;
 
 function TAudioBuffer.ExtractSegment(StartSample, EndSample: Integer): TAudioBuffer;
