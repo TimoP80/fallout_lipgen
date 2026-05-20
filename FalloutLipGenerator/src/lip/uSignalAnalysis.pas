@@ -116,7 +116,125 @@ type
   function MouthStateToIndex(state: TMouthState): Integer;
   function IndexToMouthState(index: Integer): TMouthState;
 
+  { Text-to-phoneme mappings based on VOCK }
+  function LetterToLipCode(C: Char): Byte;
+  function DigraphToLipCode(const S: string): Byte;
+  function TextToLipCodes(const Text: string; Duration: Double): TLipFrameArray;
+
 implementation
+
+const
+  LETTER_TO_LIP_MAP: array[0..25] of record
+    Letter: Char;
+    Code: Byte;
+  end = (
+    (Letter: 'a'; Code: $0A), (Letter: 'b'; Code: $10), (Letter: 'c'; Code: $11),
+    (Letter: 'd'; Code: $11), (Letter: 'e'; Code: $06), (Letter: 'f'; Code: $13),
+    (Letter: 'g'; Code: $11), (Letter: 'h'; Code: $0F), (Letter: 'i'; Code: $08),
+    (Letter: 'j'; Code: $13), (Letter: 'k'; Code: $11), (Letter: 'l'; Code: $12),
+    (Letter: 'm'; Code: $10), (Letter: 'n'; Code: $11), (Letter: 'o'; Code: $04),
+    (Letter: 'p'; Code: $10), (Letter: 'q'; Code: $11), (Letter: 'r'; Code: $12),
+    (Letter: 's'; Code: $13), (Letter: 't'; Code: $11), (Letter: 'u'; Code: $05),
+    (Letter: 'v'; Code: $13), (Letter: 'w'; Code: $12), (Letter: 'x'; Code: $13),
+    (Letter: 'y'; Code: $12), (Letter: 'z'; Code: $13)
+  );
+
+  DIGRAPH_TO_LIP_MAP: array[0..7] of record
+    Digraph: string[2];
+    Code: Byte;
+  end = (
+    (Digraph: 'ch'; Code: $13), (Digraph: 'dh'; Code: $13), (Digraph: 'ng'; Code: $11),
+    (Digraph: 'ph'; Code: $13), (Digraph: 'sh'; Code: $13), (Digraph: 'th'; Code: $13),
+    (Digraph: 'wh'; Code: $12), (Digraph: 'zh'; Code: $13)
+  );
+
+function LetterToLipCode(C: Char): Byte;
+var
+  I: Integer;
+  L: Char;
+begin
+  L := LowerCase(C)[1];
+  for I := 0 to High(LETTER_TO_LIP_MAP) do
+    if LETTER_TO_LIP_MAP[I].Letter = L then
+      Exit(LETTER_TO_LIP_MAP[I].Code);
+  Result := $0E;
+end;
+
+function DigraphToLipCode(const S: string): Byte;
+var
+  I: Integer;
+begin
+  for I := 0 to High(DIGRAPH_TO_LIP_MAP) do
+    if S = DIGRAPH_TO_LIP_MAP[I].Digraph then
+      Exit(DIGRAPH_TO_LIP_MAP[I].Code);
+  Result := 0;
+end;
+
+function TextToLipCodes(const Text: string; Duration: Double): TLipFrameArray;
+var
+  I, J: Integer;
+  CleanText: string;
+  Codes: array of Byte;
+  LastCode: Byte;
+  Code: Byte;
+begin
+  Result := nil;
+  CleanText := LowerCase(Text);
+  for I := Length(CleanText) downto 1 do
+    if not (CleanText[I] in ['a'..'z', ' ']) then
+      Delete(CleanText, I, 1);
+
+  SetLength(Codes, 0);
+  I := 1;
+  while I <= Length(CleanText) do
+  begin
+    if CleanText[I] = ' ' then
+    begin
+      Inc(I);
+      Continue;
+    end;
+    if I < Length(CleanText) then
+    begin
+      Code := DigraphToLipCode(CleanText[I] + CleanText[I + 1]);
+      if Code <> 0 then
+      begin
+        SetLength(Codes, Length(Codes) + 1);
+        Codes[High(Codes)] := Code;
+        Inc(I, 2);
+        Continue;
+      end;
+    end;
+    Code := LetterToLipCode(CleanText[I]);
+    SetLength(Codes, Length(Codes) + 1);
+    Codes[High(Codes)] := Code;
+    Inc(I);
+  end;
+
+  if Length(Codes) = 0 then
+    Exit;
+
+  LastCode := 0;
+  J := 0;
+  for I := 0 to High(Codes) do
+  begin
+    if (I = 0) or (Codes[I] <> LastCode) then
+    begin
+      LastCode := Codes[I];
+      SetLength(Result, J + 1);
+      Result[J].Time := I * (Duration / Length(Codes));
+      Result[J].Duration := Duration / Length(Codes);
+      Result[J].Intensity := 0.8;
+      case Codes[I] of
+        $10, $11: Result[J].MouthState := msSmallOpen;
+        $12: Result[J].MouthState := msMediumOpen;
+        $13: Result[J].MouthState := msWideOpen;
+      else
+        Result[J].MouthState := msClosed;
+      end;
+      Inc(J);
+    end;
+  end;
+end;
 
 { TEnvelopeDetector }
 

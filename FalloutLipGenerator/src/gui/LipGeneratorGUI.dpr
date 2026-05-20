@@ -11,7 +11,13 @@ program LipGeneratorGUI;
 
 uses
   Forms,
-  uMainForm in 'uMainForm.pas' {frmMain};
+  uMainForm in 'uMainForm.pas',
+  uLipGenerator in '..\core\uLipGenerator.pas',
+  uWavReader in '..\audio\uWavReader.pas',
+  uAudioBuffer in '..\audio\uAudioBuffer.pas',
+  uSignalAnalysis in '..\lip\uSignalAnalysis.pas',
+  uFalloutLipFormat in '..\format\uFalloutLipFormat.pas',
+  uFalloutLipFormatV2 in '..\format\uFalloutLipFormatV2.pas';
 
 {$R *.res}
 

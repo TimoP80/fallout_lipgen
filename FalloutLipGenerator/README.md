@@ -410,6 +410,16 @@ For issues, questions, or contributions:
 
 ## Version History
 
+- **1.1** (2026-05-20): VOCK pipeline integration and phoneme table alignment
+  - `PHONEME_TABLE` export convention established across all 10 language phoneme modules, replacing the older per-file helper-function pattern — runtime lookup is now entirely driven by the Pascal DEVICE and Python `vock.py`.
+  - Spanish MFA table corrected: `/w/` remapped from `0x23` to `0x24` to eliminate collision with `/l/` and match the Pascal `PHONEME_TO_FRAME` reference.
+  - All 10 phoneme modules validated against Pascal `PHONEME_TO_FRAME` in `src/format/uFalloutLipFormatV2.pas` — zero code-value discrepancies across English ×2, Spanish, Russian, German, French, Italian, Hungarian, Polish, Portuguese, Czech.
+  - `config.py` added to VOCK pipeline (paths, LUFS, MFA env, default language).
+  - `dict_lookup.py` updated: accepts phonetic language name as positional argument (e.g. `python3 dict_lookup.py english_us_arpa`), auto-discovers MFA dictionaries in default locations, loads custom dictionary from `dictionaries/` folder when present.
+  - 10 language-specific custom dictionaries added under `dictionaries/` with pre-loaded Fallout 2 nouns (`geck`, `mynoc`, `tribals`, `hassleful`).
+  - Helper functions for text-to-phoneme encoding are now type-safe and callable from Pascal via the FFI boundary.
+  - Several improvements to the lip-sync generation model (text guidance response format, return-code mapping, error-lookup alignment).
+
 - **1.0** (2026-05-07): Initial release
   - Core lip generation engine
   - CLI and GUI tools

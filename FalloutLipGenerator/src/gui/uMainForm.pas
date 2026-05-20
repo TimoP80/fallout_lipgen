@@ -16,198 +16,83 @@ interface
 uses
   Classes, SysUtils, Math, System.UITypes, Forms, Controls, Graphics, Dialogs, StdCtrls,
   ExtCtrls, ComCtrls, Menus, ActnList, Buttons, Grids, uLipGenerator,
-  uWavReader, uAudioBuffer, uFalloutLipFormat, uFalloutLipFormatV2;
+  uWavReader, uAudioBuffer, uSignalAnalysis, uFalloutLipFormat, uFalloutLipFormatV2, System.Actions;
 
 type
 
   { TfrmMain }
 
   TfrmMain = class(TForm)
-    actCompare: TAction;
-    actExportDebug: TAction;
-    actExportJSON: TAction;
-    actGenerate: TAction;
-    actLoadWav: TAction;
-    actLoadLip: TAction;
-    actNew: TAction;
-    actOpen: TAction;
-    actQuit: TAction;
-    actSave: TAction;
-    actSaveAs: TAction;
-    actValidate: TAction;
-    ActionList1: TActionList;
-    btnAddToBatch: TButton;
-    btnClearBatch: TButton;
-    btnGenerate: TButton;
-    btnRemoveFromBatch: TButton;
-    chkDebug: TCheckBox;
-    chkExtendedData: TCheckBox;
-    chkNormalize: TCheckBox;
-    cmbFPS: TComboBox;
+    // Labels
+    lblTitle: TLabel;
+    lblVersion: TLabel;
+    lblInputFile: TLabel;
+    lblOutputFile: TLabel;
+    lblFPS: TLabel;
+    lblThreshold: TLabel;
+    lblThresholdVal: TLabel;
+    // Input controls
     edtInputFile: TEdit;
     edtOutputFile: TEdit;
+    cmbFPS: TComboBox;
     edtThreshold: TEdit;
+    chkNormalize: TCheckBox;
+    chkExtendedData: TCheckBox;
+    chkDebug: TCheckBox;
+    // Group boxes and their children
     gbAudioInfo: TGroupBox;
-    gbBatch: TGroupBox;
-    gbGeneration: TGroupBox;
-    gbLipInfo: TGroupBox;
-    gbWaveform: TGroupBox;
+    lblAudioFile: TLabel;
     lblAudioDuration: TLabel;
     lblAudioDurationVal: TLabel;
-    lblAudioFile: TLabel;
     lblAudioSampleRate: TLabel;
     lblAudioSampleRateVal: TLabel;
     lblBitsPerSample: TLabel;
     lblBitsPerSampleVal: TLabel;
     lblChannels: TLabel;
     lblChannelsVal: TLabel;
-    lblFPS: TLabel;
-    lblInputFile: TLabel;
+    gbLipInfo: TGroupBox;
+    lblLipFile: TLabel;
     lblLipDuration: TLabel;
     lblLipDurationVal: TLabel;
-    lblLipFile: TLabel;
     lblLipFrameCount: TLabel;
     lblLipFrameCountVal: TLabel;
     lblLipFPS: TLabel;
     lblLipFPSVal: TLabel;
-    lblOutputFile: TLabel;
-    lblThreshold: TLabel;
-    lblThresholdVal: TLabel;
-    lblTitle: TLabel;
-    lblVersion: TLabel;
+    gbBatch: TGroupBox;
     lbBatchList: TListBox;
-    MainMenu1: TMainMenu;
-    MenuItem1: TMenuItem;
-    MenuItem10: TMenuItem;
-    MenuItem11: TMenuItem;
-    MenuItem12: TMenuItem;
-    MenuItem13: TMenuItem;
-    MenuItem14: TMenuItem;
-    MenuItem15: TMenuItem;
-    MenuItem16: TMenuItem;
-    MenuItem17: TMenuItem;
-    MenuItem18: TMenuItem;
-    MenuItem19: TMenuItem;
-    MenuItem2: TMenuItem;
-    MenuItem20: TMenuItem;
-    MenuItem21: TMenuItem;
-    MenuItem22: TMenuItem;
-    MenuItem23: TMenuItem;
-    MenuItem24: TMenuItem;
-    MenuItem25: TMenuItem;
-    MenuItem26: TMenuItem;
-    MenuItem27: TMenuItem;
-    MenuItem28: TMenuItem;
-    MenuItem29: TMenuItem;
-    MenuItem3: TMenuItem;
-    MenuItem30: TMenuItem;
-    MenuItem31: TMenuItem;
-    MenuItem32: TMenuItem;
-    MenuItem33: TMenuItem;
-    MenuItem34: TMenuItem;
-    MenuItem35: TMenuItem;
-    MenuItem36: TMenuItem;
-    MenuItem37: TMenuItem;
-    MenuItem38: TMenuItem;
-    MenuItem39: TMenuItem;
-    MenuItem4: TMenuItem;
-    MenuItem40: TMenuItem;
-    MenuItem41: TMenuItem;
-    MenuItem42: TMenuItem;
-    MenuItem43: TMenuItem;
-    MenuItem44: TMenuItem;
-    MenuItem45: TMenuItem;
-    MenuItem46: TMenuItem;
-    MenuItem47: TMenuItem;
-    MenuItem48: TMenuItem;
-    MenuItem49: TMenuItem;
-    MenuItem5: TMenuItem;
-    MenuItem50: TMenuItem;
-    MenuItem51: TMenuItem;
-    MenuItem52: TMenuItem;
-    MenuItem53: TMenuItem;
-    MenuItem54: TMenuItem;
-    MenuItem55: TMenuItem;
-    MenuItem56: TMenuItem;
-    MenuItem57: TMenuItem;
-    MenuItem58: TMenuItem;
-    MenuItem59: TMenuItem;
-    MenuItem6: TMenuItem;
-    MenuItem60: TMenuItem;
-    MenuItem61: TMenuItem;
-    MenuItem62: TMenuItem;
-    MenuItem63: TMenuItem;
-    MenuItem64: TMenuItem;
-    MenuItem65: TMenuItem;
-    MenuItem66: TMenuItem;
-    MenuItem67: TMenuItem;
-    MenuItem68: TMenuItem;
-    MenuItem69: TMenuItem;
-    MenuItem7: TMenuItem;
-    MenuItem70: TMenuItem;
-    MenuItem71: TMenuItem;
-    MenuItem72: TMenuItem;
-    MenuItem73: TMenuItem;
-    MenuItem74: TMenuItem;
-    MenuItem75: TMenuItem;
-    MenuItem76: TMenuItem;
-    MenuItem77: TMenuItem;
-    MenuItem78: TMenuItem;
-    MenuItem79: TMenuItem;
-    MenuItem8: TMenuItem;
-    MenuItem80: TMenuItem;
-    MenuItem81: TMenuItem;
-    MenuItem82: TMenuItem;
-    MenuItem83: TMenuItem;
-    MenuItem84: TMenuItem;
-    MenuItem85: TMenuItem;
-    MenuItem86: TMenuItem;
-    MenuItem87: TMenuItem;
-    MenuItem88: TMenuItem;
-    MenuItem89: TMenuItem;
-    MenuItem9: TMenuItem;
-    MenuItem90: TMenuItem;
-    MenuItem91: TMenuItem;
-    MenuItem92: TMenuItem;
-    MenuItem93: TMenuItem;
-    MenuItem94: TMenuItem;
-    MenuItem95: TMenuItem;
-    MenuItem96: TMenuItem;
-    MenuItem97: TMenuItem;
-    MenuItem98: TMenuItem;
-    MenuItem99: TMenuItem;
-    OpenDialog1: TOpenDialog;
-    PageControl1: TPageControl;
-    Panel1: TPanel;
-    Panel2: TPanel;
-    Panel3: TPanel;
-    Panel4: TPanel;
-    Panel5: TPanel;
-    Panel6: TPanel;
-    Panel7: TPanel;
-    Panel8: TPanel;
-    Panel9: TPanel;
+    gbWaveform: TGroupBox;
     pbWaveform: TPaintBox;
+    gbGeneration: TGroupBox;
+    edtDialogText: TEdit;
+    // Buttons
+    btnGenerate: TButton;
+    btnAddToBatch: TButton;
+    btnClearBatch: TButton;
+    btnRemoveFromBatch: TButton;
+    btnLoadWavUI: TButton;
+    btnLoadLipUI: TButton;
+    btnValidateUI: TButton;
+    btnCompareUI: TButton;
+    // Progress / status
     ProgressBar1: TProgressBar;
-    SaveDialog1: TSaveDialog;
     sbMain: TStatusBar;
-    Splitter1: TSplitter;
-    Splitter2: TSplitter;
-    Splitter3: TSplitter;
-    TabSheet1: TTabSheet;
-    TabSheet2: TTabSheet;
-    TabSheet3: TTabSheet;
-    TabSheet4: TTabSheet;
+    // Actions
+    ActionList1: TActionList;
+    actGenerate: TAction;
+    actLoadWav: TAction;
+    actLoadLip: TAction;
+    actValidate: TAction;
+    actCompare: TAction;
+    actExportJSON: TAction;
+    actExportDebug: TAction;
+    actNew: TAction;
+    actQuit: TAction;
+    // Dialogs + timer + lip sync paintbox
+    OpenDialog1: TOpenDialog;
+    SaveDialog1: TSaveDialog;
     tmrProgress: TTimer;
-    ToolBar1: TToolBar;
-    ToolButton1: TToolButton;
-    ToolButton2: TToolButton;
-    ToolButton3: TToolButton;
-    ToolButton4: TToolButton;
-    ToolButton5: TToolButton;
-    ToolButton6: TToolButton;
-    ToolButton7: TToolButton;
-    ToolButton8: TToolButton;
+    pbLipSync: TPaintBox;
+    // Event handlers
     procedure actCompareExecute(Sender: TObject);
     procedure actExportDebugExecute(Sender: TObject);
     procedure actExportJSONExecute(Sender: TObject);
@@ -215,10 +100,7 @@ type
     procedure actLoadLipExecute(Sender: TObject);
     procedure actLoadWavExecute(Sender: TObject);
     procedure actNewExecute(Sender: TObject);
-    procedure actOpenExecute(Sender: TObject);
     procedure actQuitExecute(Sender: TObject);
-    procedure actSaveAsExecute(Sender: TObject);
-    procedure actSaveExecute(Sender: TObject);
     procedure actValidateExecute(Sender: TObject);
     procedure btnAddToBatchClick(Sender: TObject);
     procedure btnClearBatchClick(Sender: TObject);
@@ -228,7 +110,11 @@ type
     procedure edtThresholdChange(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
+    procedure FormShow(Sender: TObject);
     procedure pbWaveformPaint(Sender: TObject);
+    procedure pbLipSyncPaint(Sender: TObject);
+    procedure pbLipSyncMouseDown(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
     procedure tmrProgressTimer(Sender: TObject);
   private
     FGenerator: TLipGenerator;
@@ -237,6 +123,7 @@ type
     FLipFile: TFalloutLipFile;
     FLipFileV2: TFalloutLipFileV2;
     FWaveformData: array of Double;
+    FLipFrames: TLipFrameArray;
     FProcessing: Boolean;
     FCurrentProgress: Integer;
     
@@ -244,6 +131,7 @@ type
     procedure UpdateAudioInfo;
     procedure UpdateLipInfo;
     procedure UpdateWaveform;
+    procedure UpdateLipSync;
     procedure UpdateThresholdLabel;
     procedure LoadWavFile(const FileName: string);
     procedure LoadLipFile(const FileName: string);
@@ -276,6 +164,7 @@ begin
   FAudioBuffer := nil;
   FLipFile := nil;
   FLipFileV2 := nil;
+  FLipFrames := nil;
   FProcessing := False;
   FCurrentProgress := 0;
   
@@ -296,6 +185,8 @@ end;
 destructor TfrmMain.Destroy;
 begin
   ClearBatch;
+
+  FLipFrames := nil;
   
   if Assigned(FAudioBuffer) then
     FAudioBuffer.Free;
@@ -316,41 +207,115 @@ end;
 
 procedure TfrmMain.UpdateControls;
 begin
-  actGenerate.Enabled := (edtInputFile.Text <> '') and (edtOutputFile.Text <> '');
-  actLoadWav.Enabled := not FProcessing;
-  actLoadLip.Enabled := not FProcessing;
-  actValidate.Enabled := (edtOutputFile.Text <> '') and FileExists(edtOutputFile.Text);
-  actCompare.Enabled := (edtOutputFile.Text <> '') and FileExists(edtOutputFile.Text);
-  actExportJSON.Enabled := (edtOutputFile.Text <> '') and FileExists(edtOutputFile.Text);
-  actExportDebug.Enabled := (edtOutputFile.Text <> '') and FileExists(edtOutputFile.Text);
-  btnGenerate.Enabled := actGenerate.Enabled and not FProcessing;
-  btnAddToBatch.Enabled := (edtInputFile.Text <> '') and (edtOutputFile.Text <> '');
-  btnClearBatch.Enabled := lbBatchList.Items.Count > 0;
-  btnRemoveFromBatch.Enabled := lbBatchList.ItemIndex >= 0;
-  cmbFPS.Enabled := not FProcessing;
-  edtThreshold.Enabled := not FProcessing;
-  chkNormalize.Enabled := not FProcessing;
-  chkExtendedData.Enabled := not FProcessing;
-  chkDebug.Enabled := not FProcessing;
+  // Defensive checks for components that might not be fully initialized
+  // This helps prevent Access Violations if the DFM is incomplete or mismatched.
+
+  // Actions
+  if Assigned(ActionList1) then
+  begin
+    if Assigned(actGenerate) and Assigned(edtInputFile) and Assigned(edtOutputFile) then
+      actGenerate.Enabled := (edtInputFile.Text <> '') and (edtOutputFile.Text <> '') and not FProcessing
+    else if Assigned(actGenerate) then
+      actGenerate.Enabled := False;
+
+    if Assigned(actLoadWav) then
+      actLoadWav.Enabled := not FProcessing;
+
+    if Assigned(actLoadLip) then
+      actLoadLip.Enabled := not FProcessing;
+
+    if Assigned(actValidate) and Assigned(edtOutputFile) then
+      actValidate.Enabled := (edtOutputFile.Text <> '') and FileExists(edtOutputFile.Text)
+    else if Assigned(actValidate) then
+      actValidate.Enabled := False;
+
+    if Assigned(actCompare) and Assigned(edtOutputFile) then
+      actCompare.Enabled := (edtOutputFile.Text <> '') and FileExists(edtOutputFile.Text)
+    else if Assigned(actCompare) then
+      actCompare.Enabled := False;
+
+    if Assigned(actExportJSON) and Assigned(edtOutputFile) then
+      actExportJSON.Enabled := (edtOutputFile.Text <> '') and FileExists(edtOutputFile.Text)
+    else if Assigned(actExportJSON) then
+      actExportJSON.Enabled := False;
+
+    if Assigned(actExportDebug) and Assigned(edtOutputFile) then
+      actExportDebug.Enabled := (edtOutputFile.Text <> '') and FileExists(edtOutputFile.Text)
+    else if Assigned(actExportDebug) then
+      actExportDebug.Enabled := False;
+  end; // End of ActionList1 check
+
+  // Buttons
+  if Assigned(btnGenerate) and Assigned(actGenerate) then
+    btnGenerate.Enabled := actGenerate.Enabled
+  else if Assigned(btnGenerate) then
+    btnGenerate.Enabled := False;
+
+  if Assigned(btnAddToBatch) and Assigned(edtInputFile) and Assigned(edtOutputFile) then
+    btnAddToBatch.Enabled := (edtInputFile.Text <> '') and (edtOutputFile.Text <> '') and not FProcessing
+  else if Assigned(btnAddToBatch) then
+    btnAddToBatch.Enabled := False;
+
+  if Assigned(btnClearBatch) and Assigned(lbBatchList) then
+    btnClearBatch.Enabled := (lbBatchList.Items.Count > 0) and not FProcessing
+  else if Assigned(btnClearBatch) then
+    btnClearBatch.Enabled := False;
+
+  if Assigned(btnRemoveFromBatch) and Assigned(lbBatchList) then
+    btnRemoveFromBatch.Enabled := (lbBatchList.ItemIndex >= 0) and not FProcessing
+  else if Assigned(btnRemoveFromBatch) then
+    btnRemoveFromBatch.Enabled := False;
+
+  // Other controls
+  if Assigned(cmbFPS) then
+    cmbFPS.Enabled := not FProcessing;
+
+  if Assigned(edtThreshold) then
+    edtThreshold.Enabled := not FProcessing;
+
+  if Assigned(chkNormalize) then
+    chkNormalize.Enabled := not FProcessing;
+
+  if Assigned(chkExtendedData) then
+    chkExtendedData.Enabled := not FProcessing;
+
+  if Assigned(chkDebug) then
+    chkDebug.Enabled := not FProcessing;
+
+  if Assigned(edtDialogText) then
+    edtDialogText.Enabled := not FProcessing;
+
+  // Update progress bar and status bar
+  if Assigned(ProgressBar1) then
+    ProgressBar1.Enabled := FProcessing;
+
+  if Assigned(sbMain) then
+    sbMain.Enabled := True; // Always enabled, but content changes
+
+  // Paint boxes
+  if Assigned(pbWaveform) then
+    pbWaveform.Enabled := True;
+  if Assigned(pbLipSync) then
+    pbLipSync.Enabled := True;
 end;
 
 procedure TfrmMain.UpdateAudioInfo;
 begin
   if Assigned(FWavReader) and FWavReader.IsValid then
   begin
-    lblAudioFile.Caption := ExtractFileName(edtInputFile.Text);
-    lblAudioDurationVal.Caption := Format('%.3f seconds', [FWavReader.Duration]);
-    lblAudioSampleRateVal.Caption := Format('%d Hz', [FWavReader.SampleRate]);
-    lblBitsPerSampleVal.Caption := Format('%d bits', [FWavReader.BitsPerSample]);
-    lblChannelsVal.Caption := Format('%d channel(s)', [FWavReader.Channels]);
+    if Assigned(lblAudioFile) and Assigned(edtInputFile) then lblAudioFile.Caption := ExtractFileName(edtInputFile.Text);
+    if Assigned(lblAudioDurationVal) then lblAudioDurationVal.Caption := Format('%.3f seconds', [FWavReader.Duration]);
+    if Assigned(lblAudioSampleRateVal) then lblAudioSampleRateVal.Caption := Format('%d Hz', [FWavReader.SampleRate]);
+    if Assigned(lblBitsPerSampleVal) then lblBitsPerSampleVal.Caption := Format('%d bits', [FWavReader.BitsPerSample]);
+    if Assigned(lblChannelsVal) then lblChannelsVal.Caption := Format('%d channel(s)', [FWavReader.Channels]);
   end
   else
   begin
-    lblAudioFile.Caption := 'No file loaded';
-    lblAudioDurationVal.Caption := '--';
-    lblAudioSampleRateVal.Caption := '--';
-    lblBitsPerSampleVal.Caption := '--';
-    lblChannelsVal.Caption := '--';
+    if Assigned(lblAudioFile) then lblAudioFile.Caption := 'No file loaded';
+    if Assigned(lblAudioDurationVal) then lblAudioDurationVal.Caption := '--';
+    if Assigned(lblAudioSampleRateVal) then lblAudioSampleRateVal.Caption := '--';
+    if Assigned(lblBitsPerSampleVal) then lblBitsPerSampleVal.Caption := '--';
+    if Assigned(lblChannelsVal) then lblChannelsVal.Caption := '--';
   end;
 end;
 
@@ -358,24 +323,24 @@ procedure TfrmMain.UpdateLipInfo;
 begin
   if Assigned(FLipFileV2) and FLipFileV2.IsValid then
   begin
-    lblLipFile.Caption := ExtractFileName(edtOutputFile.Text);
-    lblLipDurationVal.Caption := Format('%.3f seconds', [FLipFileV2.GetDuration]);
-    lblLipFrameCountVal.Caption := Format('%d phonemes', [FLipFileV2.PhonemeCount]);
-    lblLipFPSVal.Caption := 'V2';
+    if Assigned(lblLipFile) and Assigned(edtOutputFile) then lblLipFile.Caption := ExtractFileName(edtOutputFile.Text);
+    if Assigned(lblLipDurationVal) then lblLipDurationVal.Caption := Format('%.3f seconds', [FLipFileV2.GetDuration]);
+    if Assigned(lblLipFrameCountVal) then lblLipFrameCountVal.Caption := Format('%d phonemes', [FLipFileV2.PhonemeCount]);
+    if Assigned(lblLipFPSVal) then lblLipFPSVal.Caption := 'V2';
   end
   else if Assigned(FLipFile) and FLipFile.IsValid then
   begin
-    lblLipFile.Caption := ExtractFileName(edtOutputFile.Text);
-    lblLipDurationVal.Caption := Format('%.3f seconds', [FLipFile.Duration]);
-    lblLipFrameCountVal.Caption := Format('%d frames', [FLipFile.FrameCount]);
-    lblLipFPSVal.Caption := Format('%d FPS', [FLipFile.Header.FPS]);
+    if Assigned(lblLipFile) and Assigned(edtOutputFile) then lblLipFile.Caption := ExtractFileName(edtOutputFile.Text);
+    if Assigned(lblLipDurationVal) then lblLipDurationVal.Caption := Format('%.3f seconds', [FLipFile.Duration]);
+    if Assigned(lblLipFrameCountVal) then lblLipFrameCountVal.Caption := Format('%d frames', [FLipFile.FrameCount]);
+    if Assigned(lblLipFPSVal) then lblLipFPSVal.Caption := Format('%d FPS', [FLipFile.Header.FPS]);
   end
   else
   begin
-    lblLipFile.Caption := 'No file loaded';
-    lblLipDurationVal.Caption := '--';
-    lblLipFrameCountVal.Caption := '--';
-    lblLipFPSVal.Caption := '--';
+    if Assigned(lblLipFile) then lblLipFile.Caption := 'No file loaded';
+    if Assigned(lblLipDurationVal) then lblLipDurationVal.Caption := '--';
+    if Assigned(lblLipFrameCountVal) then lblLipFrameCountVal.Caption := '--';
+    if Assigned(lblLipFPSVal) then lblLipFPSVal.Caption := '--';
   end;
 end;
 
@@ -384,9 +349,15 @@ begin
   pbWaveform.Invalidate;
 end;
 
+procedure TfrmMain.UpdateLipSync;
+begin
+  pbLipSync.Invalidate;
+end;
+
 procedure TfrmMain.UpdateThresholdLabel;
 begin
-  lblThresholdVal.Caption := Format('Threshold: %s', [edtThreshold.Text]);
+  if Assigned(lblThresholdVal) and Assigned(edtThreshold) then
+    lblThresholdVal.Caption := Format('Threshold: %s', [edtThreshold.Text]);
 end;
 
 procedure TfrmMain.LoadWavFile(const FileName: string);
@@ -419,8 +390,8 @@ begin
       FAudioBuffer.Normalize;
 
     // Update display
-    edtInputFile.Text := FileName;
-    edtOutputFile.Text := ChangeFileExt(FileName, '.lip');
+    if Assigned(edtInputFile) then edtInputFile.Text := FileName;
+    if Assigned(edtOutputFile) then edtOutputFile.Text := ChangeFileExt(FileName, '.lip');
     UpdateAudioInfo;
 
     // Generate waveform data
@@ -494,9 +465,17 @@ begin
       end;
     end;
     
-    // Update display
-    edtOutputFile.Text := FileName;
+    // Extract lip frames for visualization
+    FLipFrames := nil;
+    if Assigned(FLipFileV2) then
+      FLipFrames := FLipFileV2.ToLipFrames
+    else if Assigned(FLipFile) then
+      FLipFrames := FLipFile.ToLipFrames;
+
+    // Update display (ensure edtOutputFile is assigned)
+    if Assigned(edtOutputFile) then edtOutputFile.Text := FileName;
     UpdateLipInfo;
+    UpdateLipSync;
     UpdateControls;
     
     if Assigned(FLipFileV2) then
@@ -528,16 +507,19 @@ begin
   try
     // Configure generator
     Options := FGenerator.Options;
-    Options.FPS := StrToIntDef(Trim(Copy(cmbFPS.Text, 1, Pos(' ', cmbFPS.Text + ' ') - 1)), 12);
-    Options.Threshold := StrToFloatDef(edtThreshold.Text, 0.08);
-    Options.Normalize := chkNormalize.Checked;
-    Options.IncludeExtendedData := chkExtendedData.Checked;
-    Options.DebugMode := chkDebug.Checked;
+    if Assigned(cmbFPS) then Options.FPS := StrToIntDef(Trim(Copy(cmbFPS.Text, 1, Pos(' ', cmbFPS.Text + ' ') - 1)), 12);
+    if Assigned(edtThreshold) then Options.Threshold := StrToFloatDef(edtThreshold.Text, 0.08);
+    if Assigned(chkNormalize) then Options.Normalize := chkNormalize.Checked;
+    if Assigned(chkExtendedData) then Options.IncludeExtendedData := chkExtendedData.Checked;
+    if Assigned(chkDebug) then Options.DebugMode := chkDebug.Checked;
     FGenerator.Options := Options;
     FGenerator.OnProgress := UpdateProgress;
 
     // Generate
-    GenResult := FGenerator.GenerateFromFile(edtInputFile.Text, edtOutputFile.Text);
+    if Trim(edtDialogText.Text) <> '' then
+      GenResult := FGenerator.GenerateFromFileWithText(edtInputFile.Text, edtOutputFile.Text, edtDialogText.Text)
+    else
+      GenResult := FGenerator.GenerateFromFile(edtInputFile.Text, edtOutputFile.Text);
 
     if GenResult.Success then
     begin
@@ -553,10 +535,10 @@ begin
       // Export debug info if requested
       if chkDebug.Checked then
       begin
-        DebugFile := ChangeFileExt(edtOutputFile.Text, '.debug.txt');
+        if Assigned(edtOutputFile) then DebugFile := ChangeFileExt(edtOutputFile.Text, '.debug.txt');
         with TStringList.Create do
         try
-          Text := FGenerator.ExportDebugInfo(edtOutputFile.Text);
+          if Assigned(edtOutputFile) then Text := FGenerator.ExportDebugInfo(edtOutputFile.Text);
           SaveToFile(DebugFile);
         finally
           Free;
@@ -576,9 +558,9 @@ begin
   finally
     FProcessing := False;
     FCurrentProgress := 0;
-    UpdateControls;
-    ProgressBar1.Position := 0;
-    sbMain.SimpleText := 'Ready';
+    UpdateControls; // Ensure controls are updated after processing
+    if Assigned(ProgressBar1) then ProgressBar1.Position := 0;
+    if Assigned(sbMain) then sbMain.SimpleText := 'Ready';
   end;
 end;
 
@@ -598,13 +580,13 @@ end;
 
 procedure TfrmMain.ShowErrorMessage(const Msg: string);
 begin
-  MessageDlg(Msg, mtError, [mbOK], 0);
-  sbMain.SimpleText := Format('Error: %s', [Msg]);
+  MessageDlg(Msg, mtError, [mbOK], 0); // Ensure MessageDlg is properly called
+  if Assigned(sbMain) then sbMain.SimpleText := Format('Error: %s', [Msg]);
 end;
 
 procedure TfrmMain.ShowInfoMessage(const Msg: string);
 begin
-  sbMain.SimpleText := Msg;
+  if Assigned(sbMain) then sbMain.SimpleText := Msg;
 end;
 
 procedure TfrmMain.UpdateProgress(Progress: Integer; const Status: string);
@@ -633,7 +615,7 @@ begin
     
     if CompareDialog.Execute then
     begin
-      Comparison := FGenerator.CompareFiles(edtOutputFile.Text, CompareDialog.FileName);
+      if Assigned(edtOutputFile) then Comparison := FGenerator.CompareFiles(edtOutputFile.Text, CompareDialog.FileName);
       ShowMessage(Comparison);
     end;
   finally
@@ -655,7 +637,7 @@ begin
   try
     SaveDialog.Filter := 'Text files (*.txt)|*.txt|All files (*.*)|*.*';
     SaveDialog.FileName := ChangeFileExt(ExtractFileName(edtOutputFile.Text), '.debug.txt');
-    
+
     if SaveDialog.Execute then
     begin
       with TStringList.Create do
@@ -686,7 +668,7 @@ begin
   try
     SaveDialog.Filter := 'JSON files (*.json)|*.json|All files (*.*)|*.*';
     SaveDialog.FileName := ChangeFileExt(ExtractFileName(edtOutputFile.Text), '.json');
-    
+
     if SaveDialog.Execute then
     begin
       with TStringList.Create do
@@ -754,24 +736,17 @@ begin
   sbMain.SimpleText := 'Ready';
 end;
 
-procedure TfrmMain.actOpenExecute(Sender: TObject);
-begin
-  // Not implemented
-end;
-
 procedure TfrmMain.actQuitExecute(Sender: TObject);
 begin
   Close;
 end;
 
-procedure TfrmMain.actSaveAsExecute(Sender: TObject);
+procedure TfrmMain.FormShow(Sender: TObject);
 begin
-  // Not implemented
-end;
-
-procedure TfrmMain.actSaveExecute(Sender: TObject);
-begin
-  // Not implemented
+  // Initial UI refresh after the form is fully shown
+  UpdateControls;
+  UpdateAudioInfo;
+  UpdateLipInfo;
 end;
 
 procedure TfrmMain.actValidateExecute(Sender: TObject);
@@ -792,8 +767,8 @@ procedure TfrmMain.btnAddToBatchClick(Sender: TObject);
 begin
   if (edtInputFile.Text <> '') and (edtOutputFile.Text <> '') then
   begin
-    AddToBatch(edtInputFile.Text, edtOutputFile.Text);
-    ShowInfoMessage(Format('Added to batch: %s', [ExtractFileName(edtInputFile.Text)]));
+    if Assigned(edtInputFile) and Assigned(edtOutputFile) then AddToBatch(edtInputFile.Text, edtOutputFile.Text);
+    if Assigned(edtInputFile) then ShowInfoMessage(Format('Added to batch: %s', [ExtractFileName(edtInputFile.Text)]));
   end;
 end;
 
@@ -809,7 +784,7 @@ end;
 
 procedure TfrmMain.btnRemoveFromBatchClick(Sender: TObject);
 begin
-  if lbBatchList.ItemIndex >= 0 then
+  if Assigned(lbBatchList) and (lbBatchList.ItemIndex >= 0) then
   begin
     lbBatchList.Items.Delete(lbBatchList.ItemIndex);
     UpdateControls;
@@ -847,15 +822,15 @@ end;
 
 procedure TfrmMain.pbWaveformPaint(Sender: TObject);
 var
-  I, X, Y, CenterY, Height: Integer;
+  I, X, Y, CenterY, DrawingHeight: Integer;
   Scale: Double;
 begin
-  with pbWaveform.Canvas do
+  if Assigned(pbWaveform) then with pbWaveform.Canvas do
   begin
     // Clear background
     Brush.Color := clWhite;
     FillRect(pbWaveform.ClientRect);
-    
+
     // Draw grid
     Pen.Color := clSilver;
     Pen.Style := psDot;
@@ -864,7 +839,7 @@ begin
     // Horizontal center line
     MoveTo(0, CenterY);
     LineTo(pbWaveform.Width, CenterY);
-    
+
     // Vertical lines
     for I := 0 to 10 do
     begin
@@ -872,7 +847,7 @@ begin
       MoveTo(X, 0);
       LineTo(X, pbWaveform.Height);
     end;
-    
+
     // Draw waveform if available
     if Length(FWaveformData) > 0 then
     begin
@@ -881,18 +856,18 @@ begin
       Pen.Width := 1;
       
       CenterY := pbWaveform.Height div 2;
-      Height := pbWaveform.Height div 2 - 10;
-      
+      DrawingHeight := pbWaveform.Height div 2 - 10;
+
       // Calculate scaling
-      Scale := Height / 1.0; // Normalized to 1.0
-      
+      Scale := DrawingHeight / 1.0; // Normalized to 1.0
+
       MoveTo(0, CenterY);
-      
+
       for I := 0 to High(FWaveformData) do
       begin
         X := (I * pbWaveform.Width) div High(FWaveformData);
         Y := CenterY - Round(FWaveformData[I] * Scale);
-        
+
         // Clamp to visible area
         if Y < 0 then Y := 0;
         if Y >= pbWaveform.Height then Y := pbWaveform.Height - 1;
@@ -903,12 +878,146 @@ begin
           LineTo(X, Y);
       end;
     end;
-    
+
     // Draw border
     Pen.Color := clBlack;
     Pen.Style := psSolid;
     Pen.Width := 1;
     Rectangle(0, 0, pbWaveform.Width, pbWaveform.Height);
+  end;
+end;
+
+procedure TfrmMain.pbLipSyncPaint(Sender: TObject);
+var
+  I, X, Y, BarHeight: Integer;
+  TimeScale, Duration: Double;
+  FrameTime: Double;
+  LColor: TColor;
+begin
+  if not Assigned(pbLipSync) then Exit;
+
+  with pbLipSync.Canvas do
+  begin
+    // Clear background
+    Brush.Color := clWhite;
+    FillRect(pbLipSync.ClientRect);
+    
+    // Draw legend
+    Font.Size := 8;
+    TextOut(10, 5, 'Gray=Closed, Green=Small, Yellow=Medium, Red=Wide (Click to edit)');
+    
+    // Draw grid
+    Pen.Color := clSilver;
+    Pen.Style := psDot;
+    
+    // Horizontal lines
+    for I := 0 to 4 do
+    begin
+      Y := (I * pbLipSync.Height) div 4;
+      MoveTo(0, Y);
+      LineTo(pbLipSync.Width, Y);
+    end;
+    
+    // Vertical lines
+    for I := 0 to 10 do
+    begin
+      X := (I * pbLipSync.Width) div 10;
+      MoveTo(X, 0);
+      LineTo(X, pbLipSync.Height);
+    end;
+    
+    // Draw lip sync frames if available
+    if Length(FLipFrames) > 0 then
+    begin
+      // Calculate time scale
+      Duration := 0.0;
+      if Assigned(FWavReader) and FWavReader.IsValid then
+        Duration := FWavReader.Duration
+      else if Length(FLipFrames) > 0 then
+        Duration := FLipFrames[High(FLipFrames)].Time + FLipFrames[High(FLipFrames)].Duration;
+      
+      if Duration > 0 then
+        TimeScale := pbLipSync.Width / Duration
+      else
+        TimeScale := 1.0;
+      
+      BarHeight := pbLipSync.Height - 25; // Leave space for legend
+      
+      for I := 0 to High(FLipFrames) do
+      begin
+        // Determine color based on mouth state
+        case FLipFrames[I].MouthState of
+          msClosed: LColor := clGray;
+          msSmallOpen: LColor := clLime;
+          msMediumOpen: LColor := clYellow;
+          msWideOpen: LColor := clRed;
+        else
+          LColor := clBlack;
+        end;
+        
+        // Draw frame bar
+        Brush.Color := LColor;
+        Pen.Color := LColor;
+        Pen.Style := psSolid;
+        
+        FrameTime := FLipFrames[I].Time;
+        X := Round(FrameTime * TimeScale);
+        Y := 20; // Below legend
+        
+        // Draw a vertical bar for each frame
+        Rectangle(X, Y, X + Max(1, Round(FLipFrames[I].Duration * TimeScale)), Y + BarHeight);
+      end;
+    end;
+    
+    // Draw border
+    Pen.Color := clBlack;
+    Pen.Style := psSolid;
+    Pen.Width := 1;
+    Rectangle(0, 0, pbLipSync.Width, pbLipSync.Height);
+  end;
+end;
+
+procedure TfrmMain.pbLipSyncMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+var
+  Duration: Double;
+  TimeScale: Double;
+  ClickTime: Double;
+  I: Integer;
+  NewState: TMouthState;
+begin
+  if Length(FLipFrames) = 0 then
+    Exit;
+  
+  // Calculate time scale
+  Duration := 0.0;
+  if Assigned(FWavReader) and FWavReader.IsValid then
+    Duration := FWavReader.Duration
+  else if Length(FLipFrames) > 0 then
+    Duration := FLipFrames[High(FLipFrames)].Time + FLipFrames[High(FLipFrames)].Duration;
+  
+  if Duration <= 0 then
+    Exit;
+  
+  TimeScale := pbLipSync.Width / Duration;
+  ClickTime := X / TimeScale;
+  
+  // Find the frame at this time
+  for I := 0 to High(FLipFrames) do
+  begin
+    if (ClickTime >= FLipFrames[I].Time) and (ClickTime < FLipFrames[I].Time + FLipFrames[I].Duration) then
+    begin
+      // Cycle through mouth states
+      case FLipFrames[I].MouthState of
+        msClosed: NewState := msSmallOpen;
+        msSmallOpen: NewState := msMediumOpen;
+        msMediumOpen: NewState := msWideOpen;
+        msWideOpen: NewState := msClosed;
+      end;
+      
+      FLipFrames[I].MouthState := NewState;
+      UpdateLipSync;
+      Break;
+    end;
   end;
 end;
 

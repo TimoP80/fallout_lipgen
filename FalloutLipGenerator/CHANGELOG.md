@@ -2,6 +2,34 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-05-20
+
+### Fixed
+
+- **Spanish MFA phoneme table** (`VOC/VOCK/phonemes/phonemes_spanish_mfa.py`): The labial-velar approximant `/w/` was incorrectly mapped to code `0x23`, colliding with `/l/` (lateral alveolar). Corrected to `0x24` (FRM frame 8 — wide open), matching the Pascal `PHONEME_TO_FRAME` reference in `uFalloutLipFormatV2.pas:78`. All 10 remaining language phoneme modules (English ×2, Russian, German, French, Italian, Hungarian, Polish, Portuguese, Czech) were diffed against the Pascal reference and the previous VOCK release — no further code-value discrepancies found.
+
+### Added
+
+- **`config.py` to VOCK pipeline** (`VOC/VOCK/config.py`): New central configuration module. All paths, LUFS target, MFA conda environment name, and default language are now declared here. `vock.py` and `dict_lookup.py` both read from it — eliminates hard-coded paths and partial-command-line overrides.
+- **Language auto-detection in `config.py`**: `LANGUAGE` field sets the default for the `--language` flag. All 10 supported languages (`arpabet`, `english`, `spanish`, `russian`, `french`, `german`, `czech`, `hungarian`, `italian`, `polish`, `portuguese`) are documented in `config.py` and mirrored in `LANGUAGE_CONFIG`.
+- **`--language` flag to `vock.py`**: A new top-level CLI argument replaces the old `--mfa-env` positional override. Usage: `python3 vock.py --language spanish`.
+- **All 10 language-specific custom dictionaries** under `VOC/VOCK/dictionaries/` (`custom.<lang>.dict`): Pre-populated with common Fallout 2 game nouns (`geck`, `mynoc`, `tribals`, `hassleful`) to reduce `spn` assignment out of the box.
+- **`pip_install_guide.md`**: Step-by-step pip-based installation for Windows and Linux, covering project dependencies.
+- **`text_guide.md`**: Phoneme usage guide with examples and a phoneme symbol table.
+- **`rgba_color_picker.md`**: Examples for color picking, complementing the existing RGB reference.
+
+### Changed
+
+- **VOCK phoneme module API**: Each language module now exports `PHONEME_TABLE` (a `dict[str, int]`) instead of `ARPA_TO_LIP` / `ENGLISH_IPA_TO_LIP` / `SPANISH_IPA_TO_LIP`, etc. Per-module helper functions (`arpa_to_lip_code`, `ipa_to_lip_code`) were removed in favour of the shared `make_phoneme_converter()` closure in `vock.py`, which strips MFA stress/length markers before lookup. GUI and pipeline constants:
+  | Constant | vock.py | Pascal |
+  |---|---|---|
+  | `LIP_VERSION` | `0x00000002` | `LIP_VERSION_2 = 2` ✓ |
+  | `LIP_UNKNOWN` | `0x00005800` | `LIP_MAGIC = $00005800` ✓ |
+  | `LIP_SAMPLE_RATE` | `22050` Hz | `LIP_SAMPLE_RATE = 22050` ✓ |
+  | `LIP_MULTIPLIER` | `2` | `LIP_MULTIPLIER = 2` ✓ |
+
+---
+
 ## 2026-05-07
 
 ### Fixed

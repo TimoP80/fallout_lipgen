@@ -153,6 +153,9 @@ type
     { Export to JSON }
     function ExportToJSON: string;
     
+    { Export hex dump for debugging }
+    function ExportHexDump: string;
+    
     { Get duration in seconds }
     function GetDuration: Double;
     
@@ -690,6 +693,43 @@ begin
     
     Result := SL.Text;
   finally
+    SL.Free;
+  end;
+end;
+
+function TFalloutLipFileV2.ExportHexDump: string;
+var
+  I: Integer;
+  SL: TStringList;
+  Stream: TMemoryStream;
+  Buffer: TBytes;
+begin
+  SL := TStringList.Create;
+  Stream := TMemoryStream.Create;
+  try
+    SaveToStream(Stream);
+    SetLength(Buffer, Stream.Size);
+    Stream.Position := 0;
+    Stream.ReadBuffer(Buffer[0], Stream.Size);
+    
+    SL.Add('--- LIP V2 Hex Dump ---');
+    SL.Add(Format('Total Size: %d bytes', [Length(Buffer)]));
+    SL.Add('');
+    
+    for I := 0 to Length(Buffer) - 1 do
+    begin
+      if (I mod 16) = 0 then
+      begin
+        if I > 0 then
+          SL.Add('');
+        SL.Add(Format('%4.4x: ', [I]));
+      end;
+      SL.Strings[SL.Count - 1] := SL.Strings[SL.Count - 1] + Format('%2.2x ', [Buffer[I]]);
+    end;
+    
+    Result := SL.Text;
+  finally
+    Stream.Free;
     SL.Free;
   end;
 end;

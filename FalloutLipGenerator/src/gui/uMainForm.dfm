@@ -14,6 +14,7 @@ object frmMain: TfrmMain
   Position = poScreenCenter
   OnCreate = FormCreate
   OnDestroy = FormDestroy
+  OnShow = FormShow
   PixelsPerInch = 96
   TextHeight = 15
   object lblTitle: TLabel
@@ -22,7 +23,7 @@ object frmMain: TfrmMain
     Width = 170
     Height = 21
     Caption = 'Fallout Lip Generator'
-    Font.Charset = DEFAULT_CHARSET
+    Font.Charset = ANSI_CHARSET
     Font.Color = clWindowText
     Font.Height = -16
     Font.Name = 'Segoe UI Semibold'
@@ -31,7 +32,7 @@ object frmMain: TfrmMain
   end
   object lblVersion: TLabel
     Left = 16
-    Top = 42
+    Top = 40
     Width = 65
     Height = 15
     Caption = 'Version 1.0'
@@ -53,7 +54,7 @@ object frmMain: TfrmMain
   object lblFPS: TLabel
     Left = 16
     Top = 140
-    Width = 20
+    Width = 19
     Height = 15
     Caption = 'FPS'
   end
@@ -145,42 +146,42 @@ object frmMain: TfrmMain
     object lblAudioDuration: TLabel
       Left = 12
       Top = 52
-      Width = 49
+      Width = 46
       Height = 15
       Caption = 'Duration'
     end
     object lblAudioDurationVal: TLabel
       Left = 120
       Top = 52
-      Width = 12
+      Width = 10
       Height = 15
       Caption = '--'
     end
     object lblAudioSampleRate: TLabel
       Left = 12
       Top = 72
-      Width = 68
+      Width = 65
       Height = 15
       Caption = 'Sample Rate'
     end
     object lblAudioSampleRateVal: TLabel
       Left = 120
       Top = 72
-      Width = 12
+      Width = 10
       Height = 15
       Caption = '--'
     end
     object lblBitsPerSample: TLabel
       Left = 12
       Top = 92
-      Width = 83
+      Width = 81
       Height = 15
       Caption = 'Bits Per Sample'
     end
     object lblBitsPerSampleVal: TLabel
       Left = 120
       Top = 92
-      Width = 12
+      Width = 10
       Height = 15
       Caption = '--'
     end
@@ -194,7 +195,7 @@ object frmMain: TfrmMain
     object lblChannelsVal: TLabel
       Left = 120
       Top = 112
-      Width = 12
+      Width = 10
       Height = 15
       Caption = '--'
     end
@@ -209,49 +210,49 @@ object frmMain: TfrmMain
     object lblLipFile: TLabel
       Left = 12
       Top = 24
-      Width = 85
+      Width = 74
       Height = 15
       Caption = 'No file loaded'
     end
     object lblLipDuration: TLabel
       Left = 12
       Top = 52
-      Width = 49
+      Width = 46
       Height = 15
       Caption = 'Duration'
     end
     object lblLipDurationVal: TLabel
       Left = 120
       Top = 52
-      Width = 12
+      Width = 10
       Height = 15
       Caption = '--'
     end
     object lblLipFrameCount: TLabel
       Left = 12
       Top = 72
-      Width = 67
+      Width = 69
       Height = 15
       Caption = 'Frame Count'
     end
     object lblLipFrameCountVal: TLabel
       Left = 120
       Top = 72
-      Width = 12
+      Width = 10
       Height = 15
       Caption = '--'
     end
     object lblLipFPS: TLabel
       Left = 12
       Top = 92
-      Width = 20
+      Width = 19
       Height = 15
       Caption = 'FPS'
     end
     object lblLipFPSVal: TLabel
       Left = 120
       Top = 92
-      Width = 12
+      Width = 10
       Height = 15
       Caption = '--'
     end
@@ -287,84 +288,106 @@ object frmMain: TfrmMain
       OnPaint = pbWaveformPaint
     end
   end
+  object gbGeneration: TGroupBox
+    Left = 16
+    Top = 592
+    Width = 280
+    Height = 100
+    Caption = 'Generation Options'
+    TabOrder = 11
+    object lblDialogText: TLabel
+      Left = 12
+      Top = 24
+      Width = 65
+      Height = 15
+      Caption = 'Dialog Text:'
+    end
+    object edtDialogText: TEdit
+      Left = 12
+      Top = 40
+      Width = 256
+      Height = 23
+      TabOrder = 0
+    end
+  end
   object btnGenerate: TButton
-    Left = 672
-    Top = 72
+    Left = 312
+    Top = 592
     Width = 120
     Height = 25
     Caption = 'Generate'
-    TabOrder = 11
+    TabOrder = 12
     OnClick = btnGenerateClick
   end
   object btnAddToBatch: TButton
-    Left = 800
-    Top = 72
+    Left = 440
+    Top = 592
     Width = 120
     Height = 25
     Caption = 'Add To Batch'
-    TabOrder = 12
+    TabOrder = 13
     OnClick = btnAddToBatchClick
   end
   object btnClearBatch: TButton
-    Left = 672
-    Top = 104
+    Left = 312
+    Top = 624
     Width = 120
     Height = 25
     Caption = 'Clear Batch'
-    TabOrder = 13
+    TabOrder = 14
     OnClick = btnClearBatchClick
   end
   object btnRemoveFromBatch: TButton
-    Left = 800
-    Top = 104
+    Left = 440
+    Top = 624
     Width = 120
     Height = 25
     Caption = 'Remove Selected'
-    TabOrder = 14
+    TabOrder = 15
     OnClick = btnRemoveFromBatchClick
   end
   object btnLoadWavUI: TButton
-    Left = 672
-    Top = 136
+    Left = 312
+    Top = 656
     Width = 120
     Height = 25
     Action = actLoadWav
-    TabOrder = 15
+    TabOrder = 16
   end
   object btnLoadLipUI: TButton
-    Left = 800
-    Top = 136
+    Left = 440
+    Top = 656
     Width = 120
     Height = 25
     Action = actLoadLip
-    TabOrder = 16
+    TabOrder = 17
   end
   object btnValidateUI: TButton
-    Left = 672
-    Top = 592
+    Left = 312
+    Top = 688
     Width = 120
     Height = 25
     Action = actValidate
-    TabOrder = 17
+    TabOrder = 18
   end
   object btnCompareUI: TButton
-    Left = 800
-    Top = 592
+    Left = 440
+    Top = 688
     Width = 120
     Height = 25
     Action = actCompare
-    TabOrder = 18
+    TabOrder = 19
   end
   object ProgressBar1: TProgressBar
     Left = 16
-    Top = 592
+    Top = 704
     Width = 640
     Height = 17
-    TabOrder = 19
+    TabOrder = 20
   end
   object sbMain: TStatusBar
     Left = 0
-    Top = 621
+    Top = 723
     Width = 960
     Height = 19
     Panels = <>
@@ -411,18 +434,26 @@ object frmMain: TfrmMain
     end
   end
   object OpenDialog1: TOpenDialog
-    Left = 888
-    Top = 64
+    Left = 568
+    Top = 16
   end
   object SaveDialog1: TSaveDialog
-    Left = 888
-    Top = 112
+    Left = 568
+    Top = 64
   end
   object tmrProgress: TTimer
     Enabled = False
     Interval = 100
     OnTimer = tmrProgressTimer
-    Left = 888
-    Top = 160
+    Left = 568
+    Top = 112
+  end
+  object pbLipSync: TPaintBox
+    Left = 312
+    Top = 723
+    Width = 632
+    Height = 150
+    OnMouseDown = pbLipSyncMouseDown
+    OnPaint = pbLipSyncPaint
   end
 end
