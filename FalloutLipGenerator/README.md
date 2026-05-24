@@ -12,6 +12,23 @@ This project provides a complete solution for Fallout modders to create lip-sync
 
 The library reverse-engineers and recreates Fallout .LIP lip-sync generation behavior, producing binary .LIP files that closely mimic original Interplay behavior.
 
+## Recent Updates (v1.2)
+
+Version 1.2 (2026-05-24) fixed compilation errors and improved text-guided lip generation:
+- **Delphi Compilation Fixes**: Resolved syntax errors in `uLipGenerator.pas` related to undeclared `Analyzer` variable and broken if/else block structure in `GenerateFromBuffer` function
+- **Text Input Control**: Updated main form to use `TMemo` (`memDialogText`) for multi-line dialog text input instead of `TEdit`, enabling better text-guided lip generation workflow
+- **Function Call Update**: Modified `GenerateFromBuffer` to call `GenerateLipFramesWithText` directly as a standalone function from `uSignalAnalysis.pas`
+
+## Recent Updates (v1.1)
+
+Version 1.1 (2026-05-20) introduced significant improvements:
+- **VOCK Pipeline Integration**: Added integration with the VOCK (Vocal Optimized Conversion Kit) pipeline for enhanced phoneme processing
+- **LIP Format V2**: Full support for Fallout 2's actual LIP file format (Version 2) with ACM file references and phoneme-to-FRM frame mapping
+- **Phoneme Table Alignment**: Standardized `PHONEME_TABLE` export convention across all 10 language phoneme modules, replacing per-file helper functions
+- **Spanish MFA Correction**: Fixed `/w/` phoneme mapping from `0x23` to `0x24` to eliminate collision with `/l/` and match Pascal `PHONEME_TO_FRAME` reference
+- **Multi-language Validation**: All 10 phoneme modules (English×2, Spanish, Russian, German, French, Italian, Hungarian, Polish, Portuguese, Czech) validated against Pascal `PHONEME_TO_FRAME` with zero discrepancies
+- **Enhanced Tooling**: Added `config.py` to VOCK pipeline, improved `dict_lookup.py`, and added 10 language-specific custom dictionaries with Fallout 2 terminology
+
 ## Features
 
 ### Core Library
@@ -38,13 +55,21 @@ FalloutLipGenerator/
 ├── src/
 │   ├── audio/          # Audio processing (WAV reading, buffer management)
 │   ├── lip/            # Signal analysis (envelope, phoneme detection)
-│   ├── format/         # LIP format serialization
+│   ├── format/         # LIP format serialization (including V2)
 │   ├── core/           # Main lip generation engine
 │   ├── cli/            # Command-line interface
 │   └── gui/            # Graphical user interface
 ├── tests/              # Unit tests
 ├── samples/            # Sample audio files
-└── docs/               # Documentation
+├── docs/               # Documentation
+└── VOC/                # Vocal Optimized Conversion Kit (VOCK) pipeline
+    └── VOCK/           # Python-based voice modding pipeline for Fallout 2
+        ├── vock.py             # Main pipeline script
+        ├── config.py           # Global settings and paths
+        ├── dict_lookup.py      # Dictionary lookup tool
+        ├── phonemes/           # Language-specific phoneme mapping tables
+        ├── dictionaries/       # Custom dictionaries for game-specific terms
+        └── ...                 # Supporting files
 ```
 
 ### Key Units
@@ -52,7 +77,8 @@ FalloutLipGenerator/
 - **uAudioBuffer.pas**: Audio buffer management and PCM format handling
 - **uWavReader.pas**: WAV file parsing and loading
 - **uSignalAnalysis.pas**: Signal processing and lip frame generation
-- **uFalloutLipFormat.pas**: Fallout LIP file format serialization
+- **uFalloutLipFormat.pas**: Legacy Fallout LIP file format serialization
+- **uFalloutLipFormatV2.pas**: Fallout 2 LIP file format serialization (Version 2)
 - **uLipGenerator.pas**: Main orchestration engine
 - **wav2lip.dpr**: CLI tool entry point
 - **LipGeneratorGUI.dpr**: GUI application entry point
@@ -208,8 +234,9 @@ function ToLipFrames: TLipFrameArray;
 
 ## Fallout LIP Format
 
-### File Structure
+The library supports both the legacy LIP format and the actual Fallout 2 LIP Format Version 2. By default, the generator produces Version 2 files for maximum compatibility with Fallout 2 engines.
 
+### Legacy Format (Version 1)
 ```
 Offset  Size    Description
 ------  ----    -----------
@@ -222,19 +249,88 @@ Offset  Size    Description
 0x16    -       Frame table (variable)
 ```
 
-### Frame Entry
-
+### Fallout 2 Format (Version 2)
 ```
 Offset  Size    Description
 ------  ----    -----------
-0x00    2       Time offset (milliseconds)
-0x02    1       Mouth state (0-3)
-0x03    1       Intensity (0-255)
-0x04    1       Reserved
+0x00    4       Version (2)
+0x04    4       Magic (0x00005800)
+0x08    4       Unknown1 (usually 0)
+0x0C    4       Unknown2 (usually 0)
+0x10    4       ACMFileLength (length of unpacked ACM file)
+0x14    4       NumPhonemes (total number of phoneme codes)
+0x18    4       Unknown3 (usually 0)
+0x1C    4       NumMarkers (NumPhonemes + 1)
+0x20    8       ACMFileName (8-byte null-terminated ASCII)
+0x28    4       VocMarker ("VOC" + null)
+0x2C    -       Phoneme entries (variable)
+0x??    -       Marker entries (variable)
 ```
 
-### Mouth States
+### Frame Entry (Version 2)
+```
+Offset  Size    Description
+------  ----    -----------
+0x00    1       Phoneme code (0x00-0x29)
+```
 
+### Marker Entry (Version 2)
+```
+Offset  Size    Description
+------  ----    -----------
+0x00    4       MarkerType (0 or 1)
+0x04    4       SampleOffset (offset in unpacked ACM)
+```
+
+### Phoneme to FRM Frame Mapping
+The Version 2 format uses phoneme codes (0x00-0x29) that map to specific mouth states in the 9-frame FRM files:
+
+| Phoneme Code | Description | Example | FRM Frame | Mouth State |
+|--------------|-------------|---------|-----------|-------------|
+| 0x00 | Silent | - | - | Closed |
+| 0x01 | i: (bee) | bee | 3 | WideOpen |
+| 0x02 | ɪ (busy) | busy | 1 | SmallOpen |
+| 0x03 | eɪ (bay) | bay | 1 | SmallOpen |
+| 0x04 | e (end) | end | 3 | WideOpen |
+| 0x05 | æ (cat) | cat | 1 | SmallOpen |
+| 0x06 | ɑ: (arm) | arm | 1 | SmallOpen |
+| 0x07 | ɔ: (paw) | paw | 1 | SmallOpen |
+| 0x08 | oʊ (open) | open | 7 | WideOpen |
+| 0x09 | ʊ (wolf) | wolf | 8 | WideOpen |
+| 0x0A | u: (dew) | dew | 7 | WideOpen |
+| 0x0B | ʊəʳ (cure) | cure | 3 | WideOpen |
+| 0x0C | ɒ (slaw) | slaw | 1 | SmallOpen |
+| 0x0D | ʌ (lug) | lug | 8 | WideOpen |
+| 0x0E | aɪ (sky) | sky | 1 | SmallOpen |
+| 0x0F | aʊ (now) | now | 7 | WideOpen |
+| 0x10 | ɔɪ (join) | join | 7 | WideOpen |
+| 0x11 | p (pin) | pin | 6 | MediumOpen |
+| 0x12 | b (bug) | bug | 6 | MediumOpen |
+| 0x13 | t (tip) | tip | 2 | MediumOpen |
+| 0x14 | d (dad) | dad | 2 | MediumOpen |
+| 0x15 | k (cat) | cat | 2 | MediumOpen |
+| 0x16 | g (gun) | gun | 2 | MediumOpen |
+| 0x17 | f (fat) | fat | 4 | MediumOpen |
+| 0x18 | v (vine) | vine | 4 | MediumOpen |
+| 0x19 | θ (thongs) | thongs | 5 | MediumOpen |
+| 0x1A | ð (leather) | leather | 5 | MediumOpen |
+| 0x1B | s (sit) | sit | 2 | MediumOpen |
+| 0x1C | z (zed) | zed | 2 | MediumOpen |
+| 0x1D | ʃ (sham) | sham | 2 | MediumOpen |
+| 0x1E | ʒ (treasure) | treasure | 2 | MediumOpen |
+| 0x1F | h (hop) | hop | 2 | MediumOpen |
+| 0x20 | m (man) | man | 6 | MediumOpen |
+| 0x21 | n (net) | net | 2 | MediumOpen |
+| 0x22 | ŋ (ring) | ring | 2 | MediumOpen |
+| 0x23 | l (live) | live | 5 | MediumOpen |
+| 0x24 | w (wit) | wit | 8 | WideOpen |
+| 0x25 | j (you) | you | 2 | MediumOpen |
+| 0x26 | r (run) | run | 2 | MediumOpen |
+| 0x27 | tʃ (chip) | chip | 2 | MediumOpen |
+| 0x28 | dʒ (jam) | jam | 2 | MediumOpen |
+| 0x29 | ** (unused) | - | 8 | WideOpen |
+
+### Mouth States
 | Value | State | Description |
 |-------|-------|-------------|
 | 0 | Closed | Mouth closed / silence |

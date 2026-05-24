@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-05-24
+
+### Fixed
+
+- **Delphi compilation errors in text-guided lip generation**: Fixed syntax errors in `uLipGenerator.pas` related to undeclared `Analyzer` variable and broken if/else block structure in `GenerateFromBuffer` function. Updated references to use correct `memDialogText` control instead of non-existent `edtDialogText`. Modified `GenerateFromBuffer` to call `GenerateLipFramesWithText` directly as a standalone function from `uSignalAnalysis.pas`.
+
+### Changed
+
+- **GUI text input control**: Updated main form to use `TMemo` (`memDialogText`) for multi-line dialog text input instead of `TEdit`, enabling better text-guided lip generation workflow.
+
 ## 2026-05-20
 
 ### Fixed

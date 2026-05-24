@@ -62,8 +62,7 @@ type
     lbBatchList: TListBox;
     gbWaveform: TGroupBox;
     pbWaveform: TPaintBox;
-    gbGeneration: TGroupBox;
-    edtDialogText: TEdit;
+        gbGeneration: TGroupBox;
     // Buttons
     btnGenerate: TButton;
     btnAddToBatch: TButton;
@@ -73,25 +72,26 @@ type
     btnLoadLipUI: TButton;
     btnValidateUI: TButton;
     btnCompareUI: TButton;
-    // Progress / status
-    ProgressBar1: TProgressBar;
-    sbMain: TStatusBar;
-    // Actions
-    ActionList1: TActionList;
-    actGenerate: TAction;
-    actLoadWav: TAction;
-    actLoadLip: TAction;
-    actValidate: TAction;
-    actCompare: TAction;
-    actExportJSON: TAction;
-    actExportDebug: TAction;
-    actNew: TAction;
-    actQuit: TAction;
-    // Dialogs + timer + lip sync paintbox
-    OpenDialog1: TOpenDialog;
-    SaveDialog1: TSaveDialog;
-    tmrProgress: TTimer;
-    pbLipSync: TPaintBox;
+  // Progress / status
+  ProgressBar1: TProgressBar;
+  sbMain: TStatusBar;
+  // Actions
+  ActionList1: TActionList;
+  actGenerate: TAction;
+  actLoadWav: TAction;
+  actLoadLip: TAction;
+  actValidate: TAction;
+  actCompare: TAction;
+  actExportJSON: TAction;
+  actExportDebug: TAction;
+  actNew: TAction;
+  actQuit: TAction;
+  // Dialogs + timer + lip sync paintbox + dialog text memo
+  OpenDialog1: TOpenDialog;
+  SaveDialog1: TSaveDialog;
+  tmrProgress: TTimer;
+  pbLipSync: TPaintBox;
+  memDialogText: TMemo;
     // Event handlers
     procedure actCompareExecute(Sender: TObject);
     procedure actExportDebugExecute(Sender: TObject);
@@ -116,6 +116,7 @@ type
     procedure pbLipSyncMouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
     procedure tmrProgressTimer(Sender: TObject);
+    procedure memDialogTextChange(Sender: TObject);
   private
     FGenerator: TLipGenerator;
     FWavReader: TWavReader;
@@ -279,11 +280,11 @@ begin
   if Assigned(chkExtendedData) then
     chkExtendedData.Enabled := not FProcessing;
 
-  if Assigned(chkDebug) then
-    chkDebug.Enabled := not FProcessing;
+if Assigned(chkDebug) then
+     chkDebug.Enabled := not FProcessing;
 
-  if Assigned(edtDialogText) then
-    edtDialogText.Enabled := not FProcessing;
+   if Assigned(memDialogText) then
+     memDialogText.Enabled := not FProcessing;
 
   // Update progress bar and status bar
   if Assigned(ProgressBar1) then
@@ -516,8 +517,8 @@ begin
     FGenerator.OnProgress := UpdateProgress;
 
     // Generate
-    if Trim(edtDialogText.Text) <> '' then
-      GenResult := FGenerator.GenerateFromFileWithText(edtInputFile.Text, edtOutputFile.Text, edtDialogText.Text)
+    if Trim(memDialogText.Text) <> '' then
+      GenResult := FGenerator.GenerateFromFileWithText(edtInputFile.Text, edtOutputFile.Text, memDialogText.Text)
     else
       GenResult := FGenerator.GenerateFromFile(edtInputFile.Text, edtOutputFile.Text);
 
@@ -1024,6 +1025,11 @@ end;
 procedure TfrmMain.tmrProgressTimer(Sender: TObject);
 begin
   // Progress timer - can be used for animation
+end;
+
+procedure TfrmMain.memDialogTextChange(Sender: TObject);
+begin
+  // Intentionally left empty - dialog text is only used during generation
 end;
 
 end.

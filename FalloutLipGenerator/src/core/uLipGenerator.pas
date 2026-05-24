@@ -30,9 +30,10 @@ type
     Normalize: Boolean;              // Normalize audio before processing
     IncludeExtendedData: Boolean;    // Include extended frame data
     MinSilenceDuration: Double;      // Minimum silence duration (seconds)
-    MinPhonemeDuration: Double;      // Minimum phoneme duration (seconds)
-    DebugMode: Boolean;              // Enable debug output
-  end;
+MinPhonemeDuration: Double;      // Minimum phoneme duration (seconds)
+     DebugMode: Boolean;              // Enable debug output
+     DialogText: string;              // Optional transcribed dialog text for text-guided generation
+   end;
 
   { Default lip generation options }
   function DefaultLipGenOptions: TLipGenOptions;
@@ -154,6 +155,7 @@ begin
   Result.MinSilenceDuration := 0.1;
   Result.MinPhonemeDuration := 0.05;
   Result.DebugMode := False;
+  Result.DialogText := '';
 end;
 
 { TLipGenerator }
@@ -384,7 +386,8 @@ begin
           DoProgress(50, 'Generating lip frames with text guidance...');
 
           // For now, delegate to the regular generation method
-          // In a full implementation, this would use the DialogText to improve phoneme alignment
+          // Set the dialog text for text-guided generation
+          FOptions.DialogText := DialogText;
           BufResult := GenerateFromBuffer(AudioBuffer, OutputLip);
           Result.Success := BufResult.Success;
           Result.ErrorMessage := BufResult.ErrorMessage;
@@ -417,10 +420,12 @@ begin
     else
       DoProgress(0, 'Generation failed');
 
-   finally
-     // Result.Warnings will be freed by caller
-   end;
- end;
+finally
+      // Result.Warnings will be freed by caller
+    end;
+  end;
+
+function TLipGenerator.GenerateFromBuffer(Buffer: TAudioBuffer; const OutputLip: string): TLipGenResult;
 var
   LipFrames: TLipFrameArray;
   LipFile: TFalloutLipFileV2;
@@ -447,8 +452,11 @@ begin
     DoProgress(60, 'Analyzing audio signal...');
     LogDebug('Starting signal analysis');
     
-    // Generate lip frames
-    LipFrames := GenerateLipFrames(Buffer);
+    // Generate lip frames - use text-guided generation if dialog text is provided
+    if Trim(FOptions.DialogText) <> '' then
+      LipFrames := GenerateLipFramesWithText(FOptions.DialogText, Buffer, FOptions.FPS)
+    else
+      LipFrames := GenerateLipFrames(Buffer);
     
     Result.FrameCount := Length(LipFrames);
     LogDebug(Format('Generated %d lip frames', [Result.FrameCount]));

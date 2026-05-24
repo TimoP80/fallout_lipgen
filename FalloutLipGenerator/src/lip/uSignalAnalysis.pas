@@ -121,6 +121,9 @@ type
   function DigraphToLipCode(const S: string): Byte;
   function TextToLipCodes(const Text: string; Duration: Double): TLipFrameArray;
 
+  { Text-guided lip frame generation }
+  function GenerateLipFramesWithText(const Text: string; buffer: TAudioBuffer; fps: Integer): TLipFrameArray;
+
 implementation
 
 const
@@ -793,6 +796,50 @@ begin
     Result := TMouthState(index)
   else
     Result := msClosed;
+end;
+
+{ Text-guided lip frame generation }
+function GenerateLipFramesWithText(const Text: string; buffer: TAudioBuffer; fps: Integer): TLipFrameArray;
+var
+  audioAnalyzer: TAudioAnalyzer;
+  audioFrames, textFrames: TLipFrameArray;
+  i, j: Integer;
+  currentTime: Double;
+begin
+  { Generate lip frames from audio (for timing and intensity) }
+  audioAnalyzer := TAudioAnalyzer.Create(buffer.SampleRate);
+  try
+    audioFrames := audioAnalyzer.GenerateLipFrames(buffer, fps);
+  finally
+    audioAnalyzer.Free;
+  end;
+
+  { Generate text frames (for mouth state sequence) }
+  textFrames := TextToLipCodes(Text, buffer.Duration);
+
+  { If we have no text frames, fall back to audio frames }
+  if Length(textFrames) = 0 then
+  begin
+    Result := audioFrames;
+    Exit;
+  end;
+
+  { Create result array matching audio frame length }
+  SetLength(Result, Length(audioFrames));
+
+  { For each audio frame, find corresponding text frame by time }
+  for i := 0 to High(audioFrames) do
+  begin
+    currentTime := audioFrames[i].Time;
+    { Find the text frame that contains currentTime }
+    j := 0;
+    while (j < High(textFrames)) and 
+          (currentTime >= textFrames[j].Time + textFrames[j].Duration) do
+      Inc(j);
+    { Copy the audio frame but override mouth state with text frame's }
+    Result[i] := audioFrames[i];
+    Result[i].MouthState := textFrames[j].MouthState;
+  end;
 end;
 
 end.
