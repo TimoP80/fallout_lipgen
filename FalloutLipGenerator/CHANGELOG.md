@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-05-26
+
+### Fixed
+
+- **LIP V2 header initialization for Anchorite compatibility**: Fixed critical bug in `src/format/uFalloutLipFormatV2.pas` where the `VocMarker` field was not being properly initialized when generating LIP files. The `VocMarker` field (should be "VOC" + null terminator) was being left as zeros, causing Anchorite's LIP editor to reject files with "Invalid LIP file format" error. Changed `FillChar(FHeader.ACMFileName, ...)` to `FillChar(FHeader, SizeOf(FHeader), 0)` to clear the entire header, then explicitly set `VocMarker` to 'V', 'O', 'C', #0.
+
 ## 2026-05-24
 
 ### Fixed

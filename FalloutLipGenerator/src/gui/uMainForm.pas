@@ -347,12 +347,14 @@ end;
 
 procedure TfrmMain.UpdateWaveform;
 begin
-  pbWaveform.Invalidate;
+  if Assigned(pbWaveform) then
+    pbWaveform.Repaint;
 end;
 
 procedure TfrmMain.UpdateLipSync;
 begin
-  pbLipSync.Invalidate;
+  if Assigned(pbLipSync) then
+    pbLipSync.Repaint;
 end;
 
 procedure TfrmMain.UpdateThresholdLabel;
@@ -387,7 +389,7 @@ begin
     FAudioBuffer := FWavReader.LoadToBuffer;
 
     // Normalize if checked
-    if chkNormalize.Checked and Assigned(FAudioBuffer) then
+    if Assigned(chkNormalize) and chkNormalize.Checked and Assigned(FAudioBuffer) then
       FAudioBuffer.Normalize;
 
     // Update display
@@ -396,22 +398,27 @@ begin
     UpdateAudioInfo;
 
     // Generate waveform data
-    if Assigned(FAudioBuffer) then
+    if Assigned(FAudioBuffer) and (FAudioBuffer.SampleCount > 0) then
     begin
       SetLength(FWaveformData, Min(FAudioBuffer.SampleCount, 10000));
 
       // Downsample for display
-      if FAudioBuffer.SampleCount > 10000 then
+      if FAudioBuffer.SampleCount > Length(FWaveformData) then
       begin
-        Step := FAudioBuffer.SampleCount div 10000;
-        for I := 0 to 9999 do
+        Step := FAudioBuffer.SampleCount div Length(FWaveformData);
+        for I := 0 to High(FWaveformData) do
           FWaveformData[I] := FAudioBuffer[I * Step];
       end
       else
       begin
-        for I := 0 to FAudioBuffer.SampleCount - 1 do
+        for I := 0 to High(FWaveformData) do
           FWaveformData[I] := FAudioBuffer[I];
       end;
+    end
+    else
+    begin
+      // No audio data - clear waveform
+      SetLength(FWaveformData, 0);
     end;
 
     UpdateWaveform;
