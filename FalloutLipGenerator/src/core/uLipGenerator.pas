@@ -428,8 +428,8 @@ finally
 function TLipGenerator.GenerateFromBuffer(Buffer: TAudioBuffer; const OutputLip: string): TLipGenResult;
 var
   LipFrames: TLipFrameArray;
-  LipFile: TFalloutLipFileV2;
-  Serializer: TFalloutLipSerializerV2;
+  LipFile: TFalloutLipFile;
+  Serializer: TFalloutLipSerializer;
   StartTime: TDateTime;
   I: Integer;
 begin
@@ -463,13 +463,14 @@ begin
     
     DoProgress(80, 'Serializing to LIP format...');
     
-    // Create serializer
-    Serializer := TFalloutLipSerializerV2.Create;
+    // Create serializer - use legacy format for Anchorite compatibility
+    Serializer := TFalloutLipSerializer.Create;
     try
       Serializer.DebugMode := FOptions.DebugMode;
+      Serializer.IncludeExtendedData := FOptions.IncludeExtendedData;
       
-      // Serialize to LIP file
-      LipFile := Serializer.Serialize(LipFrames, MakeACMFileName(OutputLip));
+      // Serialize to LIP file (legacy format for compatibility)
+      LipFile := Serializer.Serialize(LipFrames, FOptions.FPS);
       try
         LipFile.FileName := OutputLip;
         
