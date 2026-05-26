@@ -60,7 +60,7 @@ Where:
 | Offset | Size | Type | Description |
 |--------|------|------|-------------|
 | 0x0000 | 4 | uint32 | Version number (2 for Fallout 2) |
-| 0x0004 | 4 | uint32 | Magic: always `0x00005800` |
+| 0x0004 | 4 | uint32 | Magic: always `0x00580000` |
 | 0x0008 | 4 | uint32 | Unknown (usually 0) |
 | 0x000C | 4 | uint32 | Unknown (usually 0) |
 | 0x0010 | 4 | uint32 | Length of unpacked ACM file |
@@ -99,8 +99,8 @@ For each marker i from 0 to NUM-OF-PHONEMES:
 - Read by fallout2.exe to determine format
 
 ### Magic Value
-- Always `0x00005800`
-- Read but never used by game
+- Fixed: `0x00580000` (bytes 00 00 58 00 in little-endian)
+- This matches actual Fallout 2 game files (verified against HAK101.LIP)
 
 ### Unknown Fields
 - Usually set to `0x00000000`
@@ -209,8 +209,8 @@ Minimal LIP file with 2 phonemes:
 ```
 Offset  Hex Dump                          ASCII
 ------  --------------------------------  -----
-0000    02 00 00 00 00 58 00 00      LIP header start
-0008    00 00 00 00 00 00 00 00      version=2, magic=0x5800
+0000    02 00 00 00 00 00 58 00      LIP header start
+0008    00 00 00 00 00 00 00 00      version=2, magic=0x00580000
 0010    44 AC 00 00 02 00 00 00      ACM len=43332, phonemes=2
 0018    00 00 00 00 03 00 00 00      unknown=0, markers=3
 0020    44 4C 47 30 30 31 20 20      ACM file: "DLG001  "

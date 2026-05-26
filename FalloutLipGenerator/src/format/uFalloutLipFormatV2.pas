@@ -25,7 +25,8 @@ const
   LIP_VERSION_2 = 2;
   
   // Magic value always present
-  LIP_MAGIC = $00005800;
+  // FIXED: Actual Fallout 2 files have magic 0x00580000 (bytes: 00 00 58 00)
+  LIP_MAGIC = $00580000;
   
   // Maximum phonemes
   MAX_PHONEMES = 10000;
