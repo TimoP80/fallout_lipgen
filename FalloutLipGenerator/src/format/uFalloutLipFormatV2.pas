@@ -407,17 +407,28 @@ begin
   SetLength(FPhonemes, 0);
   SetLength(FMarkers, 0);
 
-  FillChar(FHeader.ACMFileName, ACM_NAME_LENGTH, 0);
-  if ACMFileName <> '' then
+  // Clear entire header first, then set fields explicitly
+  FillChar(FHeader, SizeOf(FHeader), 0);
+  
+  // Set VocMarker - this is critical for file validation
+  FHeader.VocMarker[0] := 'V';
+  FHeader.VocMarker[1] := 'O';
+  FHeader.VocMarker[2] := 'C';
+  FHeader.VocMarker[3] := #0;
+  
+  // Copy ACM filename (1-indexed Pascal string, so I+1)
+  if Length(ACMFileName) > 0 then
   begin
     for I := 0 to Min(Length(ACMFileName) - 1, ACM_NAME_LENGTH - 1) do
       FHeader.ACMFileName[I] := AnsiChar(ACMFileName[I + 1]);
   end;
   
+  // Set version and magic
+  FHeader.Version := LIP_VERSION_2;
+  FHeader.Magic := LIP_MAGIC;
+  
   if Length(LipFrames) = 0 then
   begin
-    FHeader.Version := LIP_VERSION_2;
-    FHeader.Magic := LIP_MAGIC;
     FHeader.Unknown1 := 0;
     FHeader.Unknown2 := 0;
     FHeader.ACMFileLength := 0;
@@ -446,12 +457,11 @@ begin
   SetLength(FPhonemes, J);
   SetLength(FMarkers, J + 1); // +1 for initial silence marker
   
-  // Set header
-  FHeader.Version := LIP_VERSION_2;
-  FHeader.Magic := LIP_MAGIC;
+  // Set header fields
   FHeader.Unknown1 := 0;
   FHeader.Unknown2 := 0;
   FHeader.NumPhonemes := J;
+  FHeader.Unknown3 := 0;
   FHeader.NumMarkers := J + 1;
   
   // First marker is always silence at time 0
